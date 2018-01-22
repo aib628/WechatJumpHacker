@@ -1,4 +1,4 @@
 *.class
+bin/.gitignore
 bin/imgs/found/
 bin/imgs/input/
-!bin/imgs/*.png
