@@ -1,1 +1,4 @@
 *.class
+bin/imgs/found/
+bin/imgs/input/
+!bin/imgs/*.png
