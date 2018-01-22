@@ -6,13 +6,21 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.imageio.ImageIO;
 
 import cc.vmaster.Hacker;
 import cc.vmaster.finder.TimeRecodFinder;
+import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
+import cc.vmaster.finder.helper.XLineAscComparator;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 
@@ -26,8 +34,76 @@ public class NextCenterFinderByBgColor extends TimeRecodFinder {
 
 	@Override
 	public int[] find(BufferedImage image, int[] beginPoint, int[] endPoint) {
-		// TODO Auto-generated method stub
-		return null;
+		int width = image.getWidth();
+		int height = image.getHeight();
+		adaptRadio(beginPoint, endPoint, width, height);
+
+		RGB rgb = this.calcRGB(image.getRGB(width / 2, 5));// 取出背景色，防止切换背景
+		if (!matched(rgb, RGB_TARGET_BG, 16)) {
+			if (matched(rgb, RGB_TARGET_GAME_OVER, 16)) {
+				return null;// 有可能是游戏结束了
+			}
+
+			RGB_TARGET_BG = rgb;
+		}
+
+		Map<Integer, PixelContainer> countMap = new HashMap<Integer, PixelContainer>();
+		for (int x = beginPoint[0]; x < endPoint[0]; x++) {
+			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
+				classifyPixel(countMap, image, new int[] { x, y }, 16);
+			}
+		}
+
+		Map<Integer, PixelContainer> sortedMap = MapHelper.sortMapByValue(countMap);
+		MapHelper.removeUseless(sortedMap, 0, 4);
+		//removeImposible(sortedMap);
+
+		if (debug()) {
+			pixels = sortedMap.values();
+		}
+
+		List<int[]> points = new ArrayList<int[]>();
+		for (PixelContainer pixel : sortedMap.values()) {
+			points.addAll(pixel.pointList);
+		}
+
+		Collections.sort(points, XLineAscComparator.instance);
+
+		int[] min = points.get(0);
+		int[] max = points.get(points.size() - 1);
+
+		return new int[] { (min[0] + max[0]) / 2, min[1] };
+	}
+	
+	private void classifyPixel(Map<Integer, PixelContainer> countMap, BufferedImage image, int[] point, int tolerance) {
+		int pixel = image.getRGB(point[0], point[1]);
+		RGB rgb = this.calcRGB(pixel);
+
+		// 背景色，移除
+		if (matched(rgb, RGB_TARGET_BG, tolerance)) {
+			return;
+		}
+
+		if (countMap.size() == 0) {
+			countMap.put(pixel, new PixelContainer(point));
+			return;
+		}
+
+		boolean found = false;
+		for (Entry<Integer, PixelContainer> e : countMap.entrySet()) {
+			RGB target = this.calcRGB(e.getKey());
+
+			// pixel与Map中存储像素存在相似
+			if (matched(rgb, target, tolerance)) {
+				e.getValue().addCount(point);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			countMap.put(pixel, new PixelContainer(point));
+		}
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -70,8 +146,6 @@ public class NextCenterFinderByBgColor extends TimeRecodFinder {
 				NEXT_CENTER_BY_BG.debug(graphics, pixel.pointList);
 			}
 
-			graphics.setColor(Color.red);
-			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);// 标记位置
 			graphics.dispose();
 
 			ImageIO.write(bufferedImage, "png", descFile);
