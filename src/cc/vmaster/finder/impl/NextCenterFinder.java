@@ -25,6 +25,7 @@ import cc.vmaster.finder.helper.XLineAscComparator;
 import cc.vmaster.finder.helper.YLineAscComparator;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
+import cc.vmaster.helper.RGB;
 
 /**
  * 
@@ -47,7 +48,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 		int height = image.getHeight();
 		adaptRadio(beginPoint, endPoint, width, height);
 
-		RGB rgb = this.calcRGB(image.getRGB(width / 2, 5));// 取出背景色，防止切换背景
+		RGB rgb = RGB.calcRGB(image.getRGB(width / 2, 5));// 取出背景色，防止切换背景
 		if (!matched(rgb, RGB_TARGET_BG, 16)) {
 			if (matched(rgb, RGB_TARGET_GAME_OVER, 16)) {
 				return null;// 有可能是游戏结束了
@@ -94,7 +95,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			Entry<Integer, PixelContainer> e = iterator.next();
 
 			if (sortedMap.size() > 1) {
-				if (matched(calcRGB(e.getKey()), RGB_TARGET_SHADOW, 16)) {
+				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_SHADOW, 16)) {
 					if (debug()) {
 						System.out.println("通过背景色移除");
 					}
@@ -103,7 +104,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 					continue;
 				}
 
-				if (matched(calcRGB(e.getKey()), RGB_TARGET_SHADOW_2, 16)) {
+				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_SHADOW_2, 16)) {
 					if (debug()) {
 						System.out.println("通过背景色2移除");
 					}
@@ -166,7 +167,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			Entry<Integer, PixelContainer> e = iterator.next();
 
 			if (sortedMap.size() > 1) {
-				if (matched(calcRGB(e.getKey()), RGB_TARGET_BG, 20)) {
+				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_BG, 20)) {
 					if (debug()) {
 						System.out.println("通过放大误差移除");
 					}
@@ -204,7 +205,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 	private void classifyPixel(Map<Integer, PixelContainer> countMap, BufferedImage image, int[] point, int tolerance) {
 		int pixel = image.getRGB(point[0], point[1]);
-		RGB rgb = this.calcRGB(pixel);
+		RGB rgb = RGB.calcRGB(pixel);
 
 		// 背景色，移除
 		if (matched(rgb, RGB_TARGET_BG, tolerance)) {
@@ -218,7 +219,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		boolean found = false;
 		for (Entry<Integer, PixelContainer> e : countMap.entrySet()) {
-			RGB target = this.calcRGB(e.getKey());
+			RGB target = RGB.calcRGB(e.getKey());
 
 			// pixel与Map中存储像素存在相似
 			if (matched(rgb, target, tolerance)) {

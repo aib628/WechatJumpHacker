@@ -15,6 +15,7 @@ import cc.vmaster.Hacker;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
+import cc.vmaster.helper.RGB;
 
 /**
  * 我的当前位置寻找器
@@ -43,7 +44,7 @@ public class MyPositionFinder extends TimeRecodFinder {
 		for (int x = beginPoint[0]; x < endPoint[0]; x++) {
 			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
 				int pixel = image.getRGB(x, y);
-				RGB rgb = this.calcRGB(pixel);
+				RGB rgb = RGB.calcRGB(pixel);
 				if (this.matched(rgb, RGB_TARGET, 16)) {
 					maxX = Math.max(maxX, x);
 					minX = Math.min(minX, x);

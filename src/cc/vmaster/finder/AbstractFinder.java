@@ -4,6 +4,7 @@ import java.awt.Graphics;
 import java.util.Collection;
 
 import cc.vmaster.Hacker;
+import cc.vmaster.helper.RGB;
 
 public abstract class AbstractFinder implements IFinder {
 
@@ -118,33 +119,4 @@ public abstract class AbstractFinder implements IFinder {
 		return false;
 	}
 
-	/**
-	 * 通过像素值计算RGB值
-	 * 
-	 * @param pixel 像素值
-	 */
-	protected RGB calcRGB(int pixel) {
-		int r = (pixel & 0Xff0000) >> 16;
-		int g = (pixel & 0Xff00) >> 8;
-		int b = (pixel & 0Xff);
-
-		return new RGB(r, g, b);
-	}
-
-	/**
-	 * RGB定义
-	 * 
-	 * @author VMaster
-	 */
-	public static class RGB {
-		public int R;
-		public int G;
-		public int B;
-
-		public RGB(int R, int G, int B) {
-			this.R = R;
-			this.G = G;
-			this.B = B;
-		}
-	}
 }

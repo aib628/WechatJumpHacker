@@ -19,6 +19,7 @@ import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
+import cc.vmaster.helper.RGB;
 
 /**
  * 寻找瓶子所在中心点
@@ -58,7 +59,7 @@ public class CenterFinder extends TimeRecodFinder {
 
 	private void classifyPixel(Map<Integer, PixelContainer> countMap, BufferedImage image, int[] point, int tolerance) {
 		int pixel = image.getRGB(point[0], point[1]);
-		RGB rgb = this.calcRGB(pixel);
+		RGB rgb = RGB.calcRGB(pixel);
 
 		// 背景色，移除
 
@@ -77,7 +78,7 @@ public class CenterFinder extends TimeRecodFinder {
 
 		boolean found = false;
 		for (Entry<Integer, PixelContainer> e : countMap.entrySet()) {
-			RGB target = this.calcRGB(e.getKey());
+			RGB target = RGB.calcRGB(e.getKey());
 
 			// pixel与Map中存储像素存在相似
 			if (matched(rgb, target, tolerance)) {
