@@ -3,15 +3,19 @@ package cc.vmaster;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Random;
 
 import javax.imageio.ImageIO;
 
+import cc.vmaster.finder.impl.BottleTopFinder;
 import cc.vmaster.finder.impl.MyPositionFinder;
 import cc.vmaster.finder.impl.NextCenterFinder;
 import cc.vmaster.finder.impl.WhiterPointFinder;
+import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.shell.CommandHelper;
 
@@ -24,6 +28,8 @@ import cc.vmaster.helper.shell.CommandHelper;
 public class Hacker {
 
 	private static boolean debug = true;
+
+	private static boolean autoMode = false;
 
 	/**
 	 * 图片数量
@@ -43,7 +49,7 @@ public class Hacker {
 	/**
 	 * 弹跳系数。获取屏幕分辨率
 	 */
-	private static float JUMP_RATIO = 1.400f;
+	private static float JUMP_RATIO = 1.500f;
 
 	/**
 	 * 记录上次瓶子位置
@@ -55,18 +61,15 @@ public class Hacker {
 	 */
 	private static int expectdDistance = 0;
 
-	private static final int[] phoneRatio = new int[] { 1080, 1920 };// 手机分辨率1080*1920(可以根据图片自适应，无需修改)
-	private static final int[] beginPoint = new int[] { phoneRatio[0] / 16, phoneRatio[1] / 7 };
-	private static final int[] endPoint = new int[] { phoneRatio[0] * 15 / 16, phoneRatio[1] * 14 / 15 };
-
 	/**
 	 * 随机数发生器
 	 */
 	private static final Random RANDOM = new Random();
 
-	private static final MyPositionFinder My_POSITION = new MyPositionFinder();
-	private static final NextCenterFinder NEXT_CENTER = new NextCenterFinder();
-	private static final WhiterPointFinder WHITE_POINT = new WhiterPointFinder();
+	private static final MyPositionFinder My_POSITION = MyPositionFinder.getInstance();
+	private static final NextCenterFinder NEXT_CENTER = NextCenterFinder.getInstance();
+	private static final WhiterPointFinder WHITE_POINT = WhiterPointFinder.getInstance();
+	private static final BottleTopFinder BOTTLE_TOP = BottleTopFinder.getInstance();
 
 	public static void main(String[] args) throws IOException {
 		if (args.length > 0) {
@@ -78,47 +81,62 @@ public class Hacker {
 
 		File inputDirectory = initInputDirectory();
 		System.out.println("WorkHome: " + inputDirectory.getAbsolutePath());
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
 		int hitCount = 0;
 		int executeCount = 1;
-
 		for (;; executeCount++) {
 			File imageFile = new File(inputDirectory, imageCount++ + ".png");
 			if (imageFile.exists() && !debug) {
 				imageFile.deleteOnExit();
 			}
 
+			if (!autoMode) {
+				String mode = reader.readLine();
+				if ("mode".equals(mode)) {
+					autoMode = !autoMode;
+				} else if (mode.length() > 0) {
+					try {
+						JUMP_RATIO = Float.parseFloat(mode);
+					} catch (Exception e) {
+					}
+				}
+			}
+
 			ImageHelper.getScreenShot(ADB_PATH, imageFile);
 			BufferedImage image = ImageHelper.loadImage(imageFile.getAbsolutePath());
 
-			int[] positionPoint = My_POSITION.find(image, beginPoint, endPoint);
-			if (My_POSITION.invalidPoint(positionPoint)) {
+			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			if (CoordinateChecker.invalidPoint(position)) {
 				System.out.println("游戏结束...");
 				break;// 未找到当前坐标
 			}
 
-			adjustRatio(positionPoint);
-			lastPositionPoint = new int[] { positionPoint[0], positionPoint[1] };
-			System.out.println(String.format("当前位置坐标：(%s,%s)", positionPoint[0], positionPoint[1]));
-			int[] nextCenterEndPoint = new int[] { endPoint[0], positionPoint[1] - 200 };
-			int[] nextCenterPoint = NEXT_CENTER.find(image, beginPoint, nextCenterEndPoint);
-			if (My_POSITION.invalidPoint(nextCenterPoint)) {
+			adjustRatio(position);
+			lastPositionPoint = position;
+			System.out.println(String.format("当前位置坐标：(%s,%s)", position[0], position[1]));
+
+			int[] bottleTop = BOTTLE_TOP.find(image, position, null);
+			int skipHeight = position[1] - bottleTop[1];
+			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
+			int[] nextCenter = NEXT_CENTER.find(image, Phone.getBeginPoint(), nextCenterEndPoint);
+			if (CoordinateChecker.invalidPoint(nextCenter)) {
 				System.out.println("游戏结束...");
 				break;// 未找到下一目标位置坐标
 			}
 
-			System.out.println(String.format("目标位置坐标：(%s,%s)", nextCenterPoint[0], nextCenterPoint[1]));
+			System.out.println(String.format("目标位置坐标：(%s,%s)", nextCenter[0], nextCenter[1]));
 
-			int[] whitePointBeginPoint = new int[] { nextCenterPoint[0] - 100, nextCenterPoint[1] - 100 };
-			int[] whitePointEndPoint = new int[] { nextCenterPoint[0] + 100, nextCenterPoint[1] + 100 };
-			int[] whitePoint = WHITE_POINT.find(image, whitePointBeginPoint, whitePointEndPoint);
-			if (!My_POSITION.invalidPoint(whitePoint)) {
-				System.out.println(String.format("目标中心坐标：(%s,%s)", whitePoint[0], whitePoint[1]));
+			int[] whiteBeginPoint = new int[] { nextCenter[0] - 100, nextCenter[1] - 100 };
+			int[] whiteEndPoint = new int[] { nextCenter[0] + 100, nextCenter[1] + 100 };
+			int[] whitePoint = WHITE_POINT.find(image, whiteBeginPoint, whiteEndPoint);
+			if (!CoordinateChecker.invalidPoint(whitePoint)) {
 				hitCount++;
 				nextCenterEndPoint = whitePoint;
+				System.out.println(String.format("目标中心坐标：(%s,%s)", whitePoint[0], whitePoint[1]));
 			}
 
-			int distance = calcDistance(nextCenterPoint, positionPoint);
+			int distance = calcDistance(nextCenter, position);
 			expectdDistance = distance;
 			System.out.println("distance: " + distance);
 
@@ -132,12 +150,12 @@ public class Hacker {
 			if (debug) {
 				Graphics graphics = image.getGraphics();
 				graphics.setColor(Color.white);
-				graphics.fillRect(positionPoint[0] - 5, positionPoint[1] - 5, 10, 10);// 标记位置
+				graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);// 标记位置
 
 				graphics.setColor(Color.red);
-				graphics.fillRect(nextCenterPoint[0] - 5, nextCenterPoint[1] - 5, 10, 10);// 标记位置
+				graphics.fillRect(nextCenter[0] - 5, nextCenter[1] - 5, 10, 10);// 标记位置
 
-				if (!My_POSITION.invalidPoint(whitePoint)) {
+				if (!CoordinateChecker.invalidPoint(whitePoint)) {
 					graphics.setColor(Color.BLACK);
 					graphics.fillRect(whitePoint[0] - 5, whitePoint[1] - 5, 10, 10);// 标记位置
 				}
@@ -148,8 +166,9 @@ public class Hacker {
 			}
 
 			try {
-				// sleep 随机时间，防止上传不了成绩
-				Thread.sleep(3_000 + RANDOM.nextInt(3000));// 4_000 +
+				if (autoMode) {
+					Thread.sleep(3_000 + RANDOM.nextInt(3000));
+				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -186,23 +205,14 @@ public class Hacker {
 	}
 
 	private static void adjustRatio(int[] positionPoint) {
-		/*
-		 * if (expectdDistance > 0 && lastPositionPoint != null) { int actualDistance = calcDistance(lastPositionPoint,
-		 * positionPoint); JUMP_RATIO = JUMP_RATIO * expectdDistance / actualDistance;
-		 * 
-		 * System.out.println("当前弹跳系数：" + JUMP_RATIO); }
-		 */
+
+		if (expectdDistance > 0 && lastPositionPoint != null) {
+			// int actualDistance = calcDistance(lastPositionPoint, positionPoint);
+			// JUMP_RATIO = JUMP_RATIO * expectdDistance / actualDistance;
+
+			System.out.println("当前弹跳系数：" + JUMP_RATIO);
+		}
+
 	}
 
-	public static int[] getPhoneRatio() {
-		return new int[] { phoneRatio[0], phoneRatio[1] };
-	}
-
-	public static int[] getBeginPoint() {
-		return new int[] { beginPoint[0], beginPoint[1] };
-	}
-
-	public static int[] getEndPoint() {
-		return new int[] { endPoint[0], endPoint[1] };
-	}
 }

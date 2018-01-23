@@ -10,70 +10,53 @@ import java.net.URL;
 import javax.imageio.ImageIO;
 
 import cc.vmaster.Phone;
+import cc.vmaster.finder.IFinder;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.RGB;
 
-/**
- * 我的当前位置寻找器
- * 
- * @author VMaster
- *
- */
-public class MyPositionFinder extends TimeRecodFinder {
+public class BottleTopFinder extends TimeRecodFinder {
 
-	private final RGB RGB_TARGET = new RGB(40, 43, 86);// 瓶子RGB色值
-
-	public static MyPositionFinder getInstance() {
-		return new MyPositionFinder();
+	public static BottleTopFinder getInstance() {
+		return new BottleTopFinder();
 	}
 
 	@Override
 	public int[] find(BufferedImage image, int[] beginPoint, int[] endPoint) {
 		clearDebug();
 
-		int maxX = minInt;// 初始化X最大值
-		int minX = maxInt;// 初始化X最小值
-		int maxY = minInt;// 初始化Y最大值
-		int minY = maxInt;// 初始化Y最小值
+		int width = image.getWidth();
+		int height = image.getHeight();
+		CoordinateChecker.checkAdjustBeginPoint(beginPoint, width, height);
 
-		CoordinateChecker.checkAdjustPoints(image, beginPoint, endPoint);
-		for (int x = beginPoint[0]; x < endPoint[0]; x++) {
-			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
-				int pixel = image.getRGB(x, y);
-				RGB rgb = RGB.calcRGB(pixel);
-				if (this.matched(rgb, RGB_TARGET, 16)) {
-					maxX = Math.max(maxX, x);
-					minX = Math.min(minX, x);
-					maxY = Math.max(maxY, y);
-					minY = Math.min(minY, y);
+		int min = maxInt;// 寻找最高点
 
-					if (debug()) {
-						points.add(new int[] { x, y });
-					}
-				}
+		int x = beginPoint[0];
+		for (int y = beginPoint[1]; y >= 0; y--) {
+			RGB bg = RGB.calcRGB(image.getRGB(width - 5, y));
+			int pixel = image.getRGB(x, y);
+			if (matched(RGB.calcRGB(pixel), bg, 16)) {
+				break;
 			}
+
+			if (debug()) {
+				points.add(new int[] { x, y });
+			}
+
+			min = Math.min(min, y);
 		}
 
-		int[] result = new int[2];
-		result[0] = (maxX + minX) / 2 + 3;
-		result[1] = maxY;
-
-		return result;
-	}
-
-	@Override
-	protected void clearDebug() {
-		points.clear();
+		return new int[] { x, min };
 	}
 
 	public static void main(String[] args) throws IOException {
-		MyPositionFinder finder = new MyPositionFinder();
-		finder.debug(true);
+		MyPositionFinder positionFinder = MyPositionFinder.getInstance();
+		BottleTopFinder bottleTopFinder = BottleTopFinder.getInstance();
+		bottleTopFinder.debug(true);
 
-		URL url = IOUtils.getURL(finder.getClass(), "classpath:imgs");
+		URL url = IOUtils.getURL(IFinder.class, "classpath:imgs");
 		System.out.println("WorkHome:" + url.getFile());
 
 		long costs = 0;
@@ -84,9 +67,12 @@ public class MyPositionFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
-			int[] point = finder.findAndRecord(image, Phone.getBeginPoint(), Phone.getEndPoint());
-			System.out.println(String.format("当前位置：(%s,%s)", point[0], point[1]));
-			System.out.println(String.format("匹配耗时(ms)：%s", finder.getMilliCosts()));
+			int[] position = positionFinder.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			System.out.println(String.format("当前位置：(%s,%s)", position[0], position[1]));
+
+			int[] point = bottleTopFinder.findAndRecord(image, position, null);
+			System.out.println(String.format("瓶子顶部位置：(%s,%s)", point[0], point[1]));
+			System.out.println(String.format("匹配耗时(ms)：%s", bottleTopFinder.getMilliCosts()));
 
 			TimeRecoder recoder = getRecoder().begin();
 			int width = image.getWidth();
@@ -95,11 +81,14 @@ public class MyPositionFinder extends TimeRecodFinder {
 			Graphics graphics = bufferedImage.getGraphics();
 			graphics.drawImage(image, 0, 0, width, height, null); // 绘制缩小后的图
 
+			graphics.setColor(Color.black);
+			bottleTopFinder.debug(graphics, bottleTopFinder.points);
+
 			graphics.setColor(Color.white);
-			finder.debug(graphics, finder.points);
+			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
 			graphics.setColor(Color.red);
-			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);// 标记位置
+			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);
 			graphics.dispose();
 
 			File descFile = new File(url.getPath() + "/found", file.getName());
@@ -115,4 +104,5 @@ public class MyPositionFinder extends TimeRecodFinder {
 
 		System.out.println("average time cost(ms): " + (costs / files.length / 1_000_000));
 	}
+
 }

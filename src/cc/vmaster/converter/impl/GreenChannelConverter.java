@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 
 import cc.vmaster.converter.AbstractConverter;
 import cc.vmaster.converter.IConverter;
+import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.RGB;
@@ -19,7 +20,7 @@ public class GreenChannelConverter extends AbstractConverter {
 
 	@Override
 	public BufferedImage convert(BufferedImage image, int[] beginPoint, int[] endPoint) {
-		checkAdjustPoints(image, beginPoint, endPoint);
+		CoordinateChecker.checkAdjustPoints(image, beginPoint, endPoint);
 
 		int width = image.getWidth();
 		int height = image.getHeight();

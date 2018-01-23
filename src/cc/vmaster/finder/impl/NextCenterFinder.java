@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -17,12 +16,13 @@ import java.util.Map.Entry;
 
 import javax.imageio.ImageIO;
 
-import cc.vmaster.Hacker;
+import cc.vmaster.Phone;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
 import cc.vmaster.finder.helper.XLineAscComparator;
 import cc.vmaster.finder.helper.YLineAscComparator;
+import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.RGB;
@@ -36,40 +36,47 @@ import cc.vmaster.helper.RGB;
  */
 public class NextCenterFinder extends TimeRecodFinder {
 
-	private Collection<PixelContainer> pixels;
-	private RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 背景RGB色值
+	private RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
 	private RGB RGB_TARGET_SHADOW = new RGB(178, 149, 148);// 影子RGB色值
 	private RGB RGB_TARGET_SHADOW_2 = new RGB(178, 149, 100);// 影子RGB色值
-	private RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
+	private final RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
+
+	public static NextCenterFinder getInstance() {
+		return new NextCenterFinder();
+	}
 
 	@Override
 	public int[] find(BufferedImage image, int[] beginPoint, int[] endPoint) {
-		int width = image.getWidth();
-		int height = image.getHeight();
-		adaptRadio(beginPoint, endPoint, width, height);
+		CoordinateChecker.checkAdjustPoints(image, beginPoint, endPoint);
+		clearDebug();
 
-		RGB rgb = RGB.calcRGB(image.getRGB(width / 2, 5));// 取出背景色，防止切换背景
-		if (!matched(rgb, RGB_TARGET_BG, 16)) {
-			if (matched(rgb, RGB_TARGET_GAME_OVER, 16)) {
-				return null;// 有可能是游戏结束了
-			}
-
-			RGB_TARGET_BG = rgb;
+		// 取出背景色，判断是否游戏结束
+		RGB overBg = RGB.calcRGB(image.getRGB(image.getWidth() / 2, 5));
+		if (matched(overBg, RGB_TARGET_GAME_OVER, 16)) {
+			return null;// 有可能是游戏结束了
 		}
 
+		int width = image.getWidth();
 		Map<Integer, PixelContainer> countMap = new HashMap<Integer, PixelContainer>();
-		for (int x = beginPoint[0]; x < endPoint[0]; x++) {
-			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
-				classifyPixel(countMap, image, new int[] { x, y }, 16);
+		for (int y = beginPoint[1]; y < endPoint[1]; y++) {
+			RGB bg = RGB.calcRGB(image.getRGB(width - 5, y));
+			this.RGB_TARGET_BG = bg;
+			for (int x = beginPoint[0]; x < endPoint[0]; x++) {
+				RGB rgb = RGB.calcRGB(image.getRGB(x, y));
+				if (matched(rgb, bg, 16)) {
+					continue;
+				}
+
+				classifyPixel(countMap, rgb, new int[] { x, y }, 16);
 			}
 		}
 
 		Map<Integer, PixelContainer> sortedMap = MapHelper.sortMapByValue(countMap);
-		MapHelper.removeUseless(sortedMap, 0, 4);
+		MapHelper.removeUseless(sortedMap, 0, 3);
 		removeImposible(sortedMap);
 
 		if (debug()) {
-			pixels = sortedMap.values();
+			pixels.addAll(sortedMap.values());
 		}
 
 		List<int[]> points = new ArrayList<int[]>();
@@ -184,7 +191,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		// 按数量移除
 		int size = sortedMap.size();
-		int removeMinCount = size - 1;// 留四个
+		int removeMinCount = size - 1;// 留1个
 		iterator = sortedMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 			iterator.next();
@@ -203,17 +210,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 	}
 
-	private void classifyPixel(Map<Integer, PixelContainer> countMap, BufferedImage image, int[] point, int tolerance) {
-		int pixel = image.getRGB(point[0], point[1]);
-		RGB rgb = RGB.calcRGB(pixel);
-
-		// 背景色，移除
-		if (matched(rgb, RGB_TARGET_BG, tolerance)) {
-			return;
-		}
-
+	private void classifyPixel(Map<Integer, PixelContainer> countMap, RGB rgb, int[] point, int tolerance) {
 		if (countMap.size() == 0) {
-			countMap.put(pixel, new PixelContainer(point));
+			countMap.put(rgb.pixel, new PixelContainer(point));
 			return;
 		}
 
@@ -230,14 +229,14 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		if (!found) {
-			countMap.put(pixel, new PixelContainer(point));
+			countMap.put(rgb.pixel, new PixelContainer(point));
 		}
 	}
 
 	public static void main(String[] args) throws IOException {
-		MyPositionFinder My_POSITION = new MyPositionFinder();
-
-		NextCenterFinder NEXT_CENTER = new NextCenterFinder();
+		MyPositionFinder My_POSITION = MyPositionFinder.getInstance();
+		BottleTopFinder BOTTLE_TOP = BottleTopFinder.getInstance();
+		NextCenterFinder NEXT_CENTER = NextCenterFinder.getInstance();
 		NEXT_CENTER.debug(true);// 开启Debug
 
 		URL url = IOUtils.getURL(NEXT_CENTER.getClass(), "classpath:imgs");
@@ -251,15 +250,17 @@ public class NextCenterFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
-			int[] positionPoint = My_POSITION.find(image, Hacker.getBeginPoint(), Hacker.getEndPoint());
-			if (My_POSITION.invalidPoint(positionPoint)) {
+			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标
 			}
 
-			System.out.println(String.format("当前位置坐标：(%s,%s)", positionPoint[0], positionPoint[1]));
-			int[] nextCenterEndPoint = new int[] { Hacker.getEndPoint()[0],
-					positionPoint[1] - NEXT_CENTER.getScaleHeight(205, image.getHeight()) };
-			int[] point = NEXT_CENTER.findAndRecord(image, Hacker.getBeginPoint(), nextCenterEndPoint);
+			System.out.println(String.format("当前位置坐标：(%s,%s)", position[0], position[1]));
+			int[] bottleTop = BOTTLE_TOP.find(image, position, null);
+			int skipHeight = position[1] - bottleTop[1];
+
+			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
+			int[] point = NEXT_CENTER.findAndRecord(image, Phone.getBeginPoint(), nextCenterEndPoint);
 			System.out.println(String.format("下一中心位置：(%s,%s)", point[0], point[1]));
 			System.out.println(String.format("匹配耗时(ms)：%s", NEXT_CENTER.getMilliCosts()));
 
@@ -278,7 +279,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.drawImage(image, 0, 0, width, height, null); // 绘制缩小后的图
 
 			graphics.setColor(Color.white);
-			graphics.fillRect(positionPoint[0] - 5, positionPoint[1] - 5, 10, 10);
+			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
 			int i = 0;
 			Color[] colors = new Color[] { Color.blue, Color.green, Color.orange };

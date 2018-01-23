@@ -16,12 +16,14 @@ public class WhiterPointFinder extends TimeRecodFinder {
 
 	private final int TARGET = 245;
 
+	public static WhiterPointFinder getInstance() {
+		return new WhiterPointFinder();
+	}
+
 	@Override
 	public int[] find(BufferedImage image, int[] beginPoint, int[] endPoint) {
-		if (image == null) {
-			return null;
-		}
-
+		clearDebug();
+		
 		int width = image.getWidth();
 		int height = image.getHeight();
 
