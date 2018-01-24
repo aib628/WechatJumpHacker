@@ -4,7 +4,7 @@ public class Phone {
 
 	public static final int width = 1080;
 	public static final int height = 1920;
-	private static final int[] beginPoint = new int[] { width / 16, height / 7 };
+	private static final int[] beginPoint = new int[] { width / 16, height / 6 };
 	private static final int[] endPoint = new int[] { width * 15 / 16, height * 14 / 15 };
 
 	/**

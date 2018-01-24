@@ -5,6 +5,7 @@ import java.awt.Graphics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -14,9 +15,10 @@ import cc.vmaster.helper.RGB;
 public abstract class AbstractFinder implements IFinder {
 
 	protected final Map<Integer, PixelContainer> countMap = new HashMap<Integer, PixelContainer>();
-	protected final Collection<PixelContainer> pixels = new ArrayList<PixelContainer>();
-	protected final Collection<int[]> points = new ArrayList<int[]>();
+	protected final List<PixelContainer> pixels = new ArrayList<PixelContainer>();
+	protected final List<int[]> points = new ArrayList<int[]>();
 	protected RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
+	protected RGB RGB_TARGET_BOTTLE = new RGB(40, 43, 86);// 默认瓶子RGB色值
 	private boolean debug = false;// 默认不启动，以加速
 
 	/**
@@ -141,5 +143,4 @@ public abstract class AbstractFinder implements IFinder {
 
 		return min;
 	}
-
 }

@@ -20,7 +20,6 @@ import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
 import cc.vmaster.finder.helper.XLineAscComparator;
-import cc.vmaster.finder.helper.YLineAscComparator;
 import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
@@ -41,8 +40,6 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 	private int[] position;
 	private RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
-	private RGB RGB_TARGET_SHADOW = new RGB(178, 149, 148);// 影子RGB色值
-	private RGB RGB_TARGET_SHADOW_2 = new RGB(178, 149, 100);// 影子RGB色值
 	private final RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
 
 	public static NextCenterFinder getInstance() {
@@ -66,15 +63,33 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		int width = image.getWidth();
 		for (int y = beginPoint[1]; y < endPoint[1]; y++) {
-			RGB bg = RGB.calcRGB(image.getRGB(width - 5, y));
-			// 初始化时RGB_TARGET_BG.pixel为0
-			if (matched(RGB_TARGET_BG, bg, 16) && RGB_TARGET_BG.pixel > 0) {
-				this.RGB_TARGET_BG = bg;
+			// changeBgColor(image, this.RGB_TARGET_BG, y, width);
+			RGB bg1 = RGB.calcRGB(image.getRGB(width - 5, y));
+			RGB bg2 = RGB.calcRGB(image.getRGB(5, y));
+
+			// 首次进入肯定会取、依赖于clearDebug()清除上次记录
+			if (RGB_TARGET_BG.pixel == 0) {
+				if (matched(bg1, bg2, 10)) {
+					RGB_TARGET_BG = bg1;
+				} else {
+					if (matched(bg1, RGB_TARGET_BG, 10)) {
+						RGB_TARGET_BG = bg1;
+					} else if (matched(bg2, RGB_TARGET_BG, 10)) {
+						RGB_TARGET_BG = bg2;
+					}
+				}
+
 			}
 
+			// 仅BG1与BG2相等时才切换
+			if (matched(bg1, bg2, 10)) {
+				RGB_TARGET_BG = bg1;
+			}
+			System.out.println(RGB_TARGET_BG);
 			for (int x = beginPoint[0]; x < endPoint[0]; x++) {
 				RGB rgb = RGB.calcRGB(image.getRGB(x, y));
-				if (matched(rgb, bg, 16)) {
+
+				if (matched(rgb, RGB_TARGET_BG, 5)) {
 					continue;
 				}
 
@@ -82,11 +97,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 			}
 		}
 
-		Map<Integer, PixelContainer> sortedMap = MapHelper.sortMapByValue(countMap);
-		MapHelper.removeUseless(sortedMap, 0, 3);
+		Map<Integer, PixelContainer> sortedMap = MapHelper.reorderCountMap(countMap);
+		MapHelper.removeUseless(sortedMap, 0, 4);
 		removeImposible(sortedMap, width);
 
-		List<int[]> points = new ArrayList<int[]>();
 		for (PixelContainer pixel : sortedMap.values()) {
 			points.addAll(pixel.pointList);
 		}
@@ -95,7 +109,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
-
+		
 		return new int[] { (min[0] + max[0]) / 2, min[1] };
 	}
 
@@ -104,119 +118,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 */
 	private void removeImposible(Map<Integer, PixelContainer> sortedMap, int width) {
 		removeByPosition(sortedMap, width);
-
-		// 移除影子
-		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			Entry<Integer, PixelContainer> e = iterator.next();
-
-			if (sortedMap.size() > 1) {
-				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_SHADOW, 16)) {
-					if (debug()) {
-						System.out.println("通过背景色移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-
-				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_SHADOW_2, 16)) {
-					if (debug()) {
-						System.out.println("通过背景色2移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-		}
-
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-
-		// 区域长度
-		iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			List<int[]> points = iterator.next().getValue().pointList;
-
-			// 横向看
-			if (sortedMap.size() > 1) {
-				Collections.sort(points, XLineAscComparator.instance);
-
-				int[] min = points.get(0);
-				int[] max = points.get(points.size() - 1);
-				if ((max[0] - min[0]) > 500) {
-					if (debug()) {
-						System.out.println("通过横长移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-
-			// 纵向看
-			if (sortedMap.size() > 1) {
-				Collections.sort(points, YLineAscComparator.instance);
-
-				int[] min = points.get(0);
-				int[] max = points.get(points.size() - 1);
-				if ((max[0] - min[0]) > 500) {
-					if (debug()) {
-						System.out.println("通过纵长移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-		}
-
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-
-		// 放大误差
-		iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			Entry<Integer, PixelContainer> e = iterator.next();
-
-			if (sortedMap.size() > 1) {
-				if (matched(RGB.calcRGB(e.getKey()), RGB_TARGET_BG, 20)) {
-					if (debug()) {
-						System.out.println("通过放大误差移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-		}
-
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-
-		// 按数量移除
-		int size = sortedMap.size();
-		int removeMinCount = size - 1;// 留1个
-		iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			iterator.next();
-
-			if (sortedMap.size() > 1) {
-				removeMinCount++;
-				if (size - removeMinCount < 0) {
-					if (debug()) {
-						System.out.println("通过统计数量移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-		}
+		removeTargetBottom(sortedMap);
 	}
 
 	/**
@@ -226,6 +128,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @param width 屏幕宽度
 	 */
 	private void removeByPosition(Map<Integer, PixelContainer> sortedMap, int width) {
+		// 由于瓶子当前位置不停变化，此处只有手动传入时才会生效
 		if (position == null) {
 			return;
 		}
@@ -250,6 +153,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 				// 如果连最小值都位于屏幕右边，此值定有问题
 				if (minX > position[0]) {
 					iterator.remove();
+					if (debug()) {
+						System.out.println("通过瓶子位置移除：右方");
+					}
 				}
 			}
 		}
@@ -271,34 +177,46 @@ public class NextCenterFinder extends TimeRecodFinder {
 				// 如果连最大值都位于屏幕左边，此值定有问题
 				if (maxX < position[0]) {
 					iterator.remove();
+					if (debug()) {
+						System.out.println("通过瓶子位置移除：左方");
+					}
 				}
 			}
 		}
 	}
 
 	/**
-	 * 移除目标块高度切面
+	 * 移除目标块高度切面：目标块最低点坐标一定大于其高度最高点，因此只需找出最高点，即可移除影子及高度切面。但要注意目标块以外物体
 	 * 
 	 * @param sortedMap 集合点
 	 */
-	private void removeTargetBottom(Map<Integer, PixelContainer> sortedMap, int width) {
+	private void removeTargetBottom(Map<Integer, PixelContainer> sortedMap) {
 		if (sortedMap.size() < 2) {
 			return;
 		}
 
-		int min = maxInt;
-		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			if (sortedMap.size() < 2) {
-				return;
+		// 获取集合点的最高点，即最小值。0号位置存在最小值，以便排序，1叫位置存放sortedMap的Key，以方便移除
+		List<int[]> list = new ArrayList<int[]>();
+		for (Entry<Integer, PixelContainer> e : sortedMap.entrySet()) {
+			int min = maxInt;
+			for (int[] point : e.getValue().pointList) {
+				min = Math.min(min, point[1]);
 			}
 
-			Entry<Integer, PixelContainer> e = iterator.next();
-			int value = Math.min(min, getMinPoint(e.getValue().pointList));
+			list.add(new int[] { min, e.getKey() });
+		}
 
-			// 当间iterator要小一些
-			if (value != min && min != maxInt) {
+		// 按最小值进行升序排序
+		Collections.sort(list, XLineAscComparator.instance);
 
+		// 取第一个值便是最高点
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (iterator.next().getKey() != list.get(0)[1]) {
+				iterator.remove();
+				if (debug()) {
+					System.out.println("通过目标块高度切面移除");
+				}
 			}
 		}
 	}
@@ -329,6 +247,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			int[] bottleTop = BOTTLE_TOP.find(image, position, null);
 			int skipHeight = position[1] - bottleTop[1];
 
+			NEXT_CENTER.setPosition(position);
 			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
 			int[] point = NEXT_CENTER.findAndRecord(image, Phone.getBeginPoint(), nextCenterEndPoint);
 			System.out.println(String.format("下一中心位置：(%s,%s)", point[0], point[1]));
@@ -351,7 +270,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			// NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			graphics.setColor(Color.BLACK);
+			NEXT_CENTER.debug(graphics, NEXT_CENTER.points);
 
 			graphics.setColor(Color.red);
 			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);// 标记位置

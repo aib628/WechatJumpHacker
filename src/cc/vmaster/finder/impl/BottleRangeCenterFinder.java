@@ -71,12 +71,7 @@ public class BottleRangeCenterFinder extends TimeRecodFinder {
 	 * @return 是否停止
 	 */
 	private boolean YLine(BufferedImage image, int xline, int y, int width) {
-		RGB bg1 = RGB.calcRGB(image.getRGB(width - 5, y));
-		RGB bg2 = RGB.calcRGB(image.getRGB(5, y));
-		// 初始化时RGB_TARGET_BG.pixel为0
-		if (matched(bg1, bg2, 16) || RGB_TARGET_BG.pixel == 0) {
-			this.RGB_TARGET_BG = bg1;
-		}
+		changeBgColor(image, RGB_TARGET_BG, y, width);
 
 		// 中轴线颜色
 		RGB rgb = RGB.calcRGB(image.getRGB(xline, y));

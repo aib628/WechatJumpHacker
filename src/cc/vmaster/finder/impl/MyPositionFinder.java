@@ -28,8 +28,6 @@ import cc.vmaster.helper.RGB;
  */
 public class MyPositionFinder extends TimeRecodFinder {
 
-	private final RGB RGB_TARGET = new RGB(40, 43, 86);// 瓶子RGB色值
-
 	public static MyPositionFinder getInstance() {
 		return new MyPositionFinder();
 	}
@@ -48,7 +46,7 @@ public class MyPositionFinder extends TimeRecodFinder {
 			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
 				int pixel = image.getRGB(x, y);
 				RGB rgb = RGB.calcRGB(pixel);
-				if (this.matched(rgb, RGB_TARGET, 16)) {
+				if (this.matched(rgb, RGB_TARGET_BOTTLE, 16)) {
 					maxX = Math.max(maxX, x);
 					minX = Math.min(minX, x);
 					maxY = Math.max(maxY, y);

@@ -11,11 +11,11 @@ import java.util.Map.Entry;
 public class MapHelper {
 
 	/**
-	 * 使用 Map按value对PixelContainer进行降序排序
+	 * 使用 Map按value对PixelContainer进行降序排序:按Count数排
 	 * 
 	 * @return 传入无序Map，返回有序LinkedHashMap实例
 	 */
-	public static Map<Integer, PixelContainer> sortMapByValue(Map<Integer, PixelContainer> map) {
+	public static Map<Integer, PixelContainer> reorderCountMap(Map<Integer, PixelContainer> map) {
 		Map<Integer, PixelContainer> sortedMap = new LinkedHashMap<Integer, PixelContainer>();
 		List<Entry<Integer, PixelContainer>> entryList = new ArrayList<>(map.entrySet());
 		Collections.sort(entryList, PixelCountAscComparator.instance);
@@ -23,6 +23,25 @@ public class MapHelper {
 		Iterator<Entry<Integer, PixelContainer>> iterator = entryList.iterator();
 		while (iterator.hasNext()) {
 			Entry<Integer, PixelContainer> e = iterator.next();
+			sortedMap.put(e.getKey(), e.getValue());
+		}
+
+		return sortedMap;
+	}
+
+	/**
+	 * 按Map中数组第一个元素进行升序排序
+	 * 
+	 * @param map
+	 */
+	public static Map<Integer, TargetBottomRemove> reorderMaxValueMap(Map<Integer, TargetBottomRemove> map) {
+		Map<Integer, TargetBottomRemove> sortedMap = new LinkedHashMap<Integer, TargetBottomRemove>();
+		List<Entry<Integer, TargetBottomRemove>> entryList = new ArrayList<>(map.entrySet());
+		Collections.sort(entryList, TargetBottomRemoveAscComparator.instance);
+
+		Iterator<Entry<Integer, TargetBottomRemove>> iterator = entryList.iterator();
+		while (iterator.hasNext()) {
+			Entry<Integer, TargetBottomRemove> e = iterator.next();
 			sortedMap.put(e.getKey(), e.getValue());
 		}
 
@@ -62,4 +81,78 @@ public class MapHelper {
 		}
 	}
 
+	public static void removeByLength(Map<Integer, PixelContainer> sortedMap, boolean debug) {
+		if (sortedMap.size() <= 1) {
+			return;
+		}
+
+		// 区域长度
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		while (iterator.hasNext()) {
+			List<int[]> points = iterator.next().getValue().pointList;
+
+			// 横向看
+			if (sortedMap.size() > 1) {
+				Collections.sort(points, XLineAscComparator.instance);
+
+				int[] min = points.get(0);
+				int[] max = points.get(points.size() - 1);
+				if ((max[0] - min[0]) > 500) {
+					if (debug) {
+						System.out.println("通过横长移除");
+					}
+
+					iterator.remove();
+					continue;
+				}
+			}
+
+			// 纵向看
+			if (sortedMap.size() > 1) {
+				Collections.sort(points, YLineAscComparator.instance);
+
+				int[] min = points.get(0);
+				int[] max = points.get(points.size() - 1);
+				if ((max[0] - min[0]) > 500) {
+					if (debug) {
+						System.out.println("通过纵长移除");
+					}
+
+					iterator.remove();
+					continue;
+				}
+			}
+		}
+
+		if (sortedMap.size() <= 1) {
+			return;
+		}
+	}
+
+	// 按数量移除
+	public static void removeByCount(Map<Integer, PixelContainer> sortedMap, boolean debug) {
+		if (sortedMap.size() <= 1) {
+			return;
+		}
+
+		// 按数量移除
+		int size = sortedMap.size();
+		int removeMinCount = size - 1;// 留1个
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		while (iterator.hasNext()) {
+			iterator.next();
+
+			if (sortedMap.size() > 1) {
+				removeMinCount++;
+				if (size - removeMinCount < 0) {
+					if (debug) {
+						System.out.println("通过统计数量移除");
+					}
+
+					iterator.remove();
+					continue;
+				}
+			}
+		}
+	}
 }
