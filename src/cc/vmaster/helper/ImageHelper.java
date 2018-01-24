@@ -17,6 +17,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
 import cc.vmaster.helper.shell.CommandHelper;
+import cc.vmaster.helper.shell.ExecuteResult;
 
 /**
  * 图片操作工具
@@ -63,11 +64,22 @@ public class ImageHelper {
 	 * @param adb 命令位置
 	 * @param saveFile 屏幕截图保存文件
 	 */
-	public static void getScreenShot(String adb, File saveFile) {
-		CommandHelper.executeCommand(adb + " shell /system/bin/screencap -p /sdcard/screenshot.png");
-		CommandHelper.executeCommand(adb + " pull /sdcard/screenshot.png " + saveFile.getAbsolutePath());
+	public static boolean getScreenShot(String adb, File saveFile) {
+		String screenshot = adb + " shell /system/bin/screencap -p /sdcard/screenshot.png";
+		ExecuteResult result = CommandHelper.executeCommand(screenshot);
+		if (result.success()) {
+			String pull = adb + " pull /sdcard/screenshot.png " + saveFile.getAbsolutePath();
+			result = CommandHelper.executeCommand(pull);
+			if (result.success()) {
+				System.out.println("Screen shot saved in : " + saveFile.getAbsolutePath());
+			} else {
+				System.out.println(result.result());
+			}
+		} else {
+			System.out.println(result.result());
+		}
 
-		System.out.println("Screen shot saved in : " + saveFile.getAbsolutePath());
+		return result.success();
 	}
 
 	/**

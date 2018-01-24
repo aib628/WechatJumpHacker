@@ -92,6 +92,7 @@ public class Hacker {
 			}
 
 			if (!autoMode) {
+				System.out.println("按下Enter继续...");
 				String mode = reader.readLine();
 				if ("mode".equals(mode)) {
 					autoMode = !autoMode;
@@ -103,7 +104,10 @@ public class Hacker {
 				}
 			}
 
-			ImageHelper.getScreenShot(ADB_PATH, imageFile);
+			if (!ImageHelper.getScreenShot(ADB_PATH, imageFile)) {
+				continue;
+			}
+
 			BufferedImage image = ImageHelper.loadImage(imageFile.getAbsolutePath());
 
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
