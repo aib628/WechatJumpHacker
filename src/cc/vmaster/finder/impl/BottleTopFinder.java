@@ -17,6 +17,16 @@ import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.RGB;
 
+/**
+ * 寻找瓶子最高点，用于计算瓶子高度
+ * 
+ * beginPoint:瓶子当前位置坐标
+ * 
+ * endPoint:无效
+ * 
+ * @author FanRenwei
+ *
+ */
 public class BottleTopFinder extends TimeRecodFinder {
 
 	public static BottleTopFinder getInstance() {

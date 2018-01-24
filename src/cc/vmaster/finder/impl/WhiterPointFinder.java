@@ -7,7 +7,11 @@ import java.util.Queue;
 import cc.vmaster.finder.TimeRecodFinder;
 
 /**
- * 下一位置中白色中心点寻找器
+ * 寻找一下目标位置中的白色中心点,如果有
+ * 
+ * beginPoint:由NextCenterFinder寻找到的下一目标位置坐标
+ * 
+ * endPoint:无效
  * 
  * @author VMaster
  *
@@ -23,7 +27,7 @@ public class WhiterPointFinder extends TimeRecodFinder {
 	@Override
 	public int[] find(BufferedImage image, int[] beginPoint, int[] endPoint) {
 		clearDebug();
-		
+
 		int width = image.getWidth();
 		int height = image.getHeight();
 

@@ -17,7 +17,11 @@ import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.RGB;
 
 /**
- * 我的当前位置寻找器
+ * 寻找瓶子当前位置
+ * 
+ * beginPoint:起始位置坐标，去除手机边上部分，测试1080P值为：Phone.getBeginPoint();
+ * 
+ * endPoint:结束位置坐标，去除手机边上部分，测试1080P值为：Phone.getEndPoint();
  * 
  * @author VMaster
  *

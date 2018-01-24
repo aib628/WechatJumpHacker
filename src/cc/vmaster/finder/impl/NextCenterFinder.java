@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,13 +28,18 @@ import cc.vmaster.helper.RGB;
 
 /**
  * 
- * 下一位置寻找器
+ * 寻找下一目标位置中心点
+ * 
+ * beginPoint:同瓶子当前位置寻找器beginPoint，如Phone.getBeginPoint();
+ * 
+ * endPoint:{Phone.getEndPoint()[0], position[1]-skipHight} ， position为瓶子位置坐标 ， skipHight为瓶子高度
  * 
  * @author VMaster
  *
  */
 public class NextCenterFinder extends TimeRecodFinder {
 
+	private int[] position;
 	private RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
 	private RGB RGB_TARGET_SHADOW = new RGB(178, 149, 148);// 影子RGB色值
 	private RGB RGB_TARGET_SHADOW_2 = new RGB(178, 149, 100);// 影子RGB色值
@@ -43,6 +47,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 	public static NextCenterFinder getInstance() {
 		return new NextCenterFinder();
+	}
+
+	public void setPosition(int[] position) {
+		this.position = position;
 	}
 
 	@Override
@@ -57,27 +65,26 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		int width = image.getWidth();
-		Map<Integer, PixelContainer> countMap = new HashMap<Integer, PixelContainer>();
 		for (int y = beginPoint[1]; y < endPoint[1]; y++) {
 			RGB bg = RGB.calcRGB(image.getRGB(width - 5, y));
-			this.RGB_TARGET_BG = bg;
+			// 初始化时RGB_TARGET_BG.pixel为0
+			if (matched(RGB_TARGET_BG, bg, 16) && RGB_TARGET_BG.pixel > 0) {
+				this.RGB_TARGET_BG = bg;
+			}
+
 			for (int x = beginPoint[0]; x < endPoint[0]; x++) {
 				RGB rgb = RGB.calcRGB(image.getRGB(x, y));
 				if (matched(rgb, bg, 16)) {
 					continue;
 				}
 
-				classifyPixel(countMap, rgb, new int[] { x, y }, 16);
+				classifyPixel(rgb, new int[] { x, y }, 16);
 			}
 		}
 
 		Map<Integer, PixelContainer> sortedMap = MapHelper.sortMapByValue(countMap);
 		MapHelper.removeUseless(sortedMap, 0, 3);
-		removeImposible(sortedMap);
-
-		if (debug()) {
-			pixels.addAll(sortedMap.values());
-		}
+		removeImposible(sortedMap, width);
 
 		List<int[]> points = new ArrayList<int[]>();
 		for (PixelContainer pixel : sortedMap.values()) {
@@ -95,7 +102,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 	/**
 	 * 移除不太可能的点，比如点最大值与最小值相差太大
 	 */
-	private void removeImposible(Map<Integer, PixelContainer> sortedMap) {
+	private void removeImposible(Map<Integer, PixelContainer> sortedMap, int width) {
+		removeByPosition(sortedMap, width);
+
 		// 移除影子
 		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
 		while (iterator.hasNext()) {
@@ -210,26 +219,87 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 	}
 
-	private void classifyPixel(Map<Integer, PixelContainer> countMap, RGB rgb, int[] point, int tolerance) {
-		if (countMap.size() == 0) {
-			countMap.put(rgb.pixel, new PixelContainer(point));
+	/**
+	 * 通过X轴位置移除不可能集合点。瓶子位于左方，则下一中心点一定位于瓶子右方，反之亦然
+	 * 
+	 * @param sortedMap 集合点
+	 * @param width 屏幕宽度
+	 */
+	private void removeByPosition(Map<Integer, PixelContainer> sortedMap, int width) {
+		if (position == null) {
 			return;
 		}
 
-		boolean found = false;
-		for (Entry<Integer, PixelContainer> e : countMap.entrySet()) {
-			RGB target = RGB.calcRGB(e.getKey());
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		int spliter = position[0];// 获取瓶子X轴位置,从而确定下一中心点是位置屏幕左方，还是右方
 
-			// pixel与Map中存储像素存在相似
-			if (matched(rgb, target, tolerance)) {
-				e.getValue().addCount(point);
-				found = true;
-				break;
+		// 瓶子中心点位于右方、下一中心最小值一定位于瓶子中心点左方
+		if (spliter > width / 2) {
+			while (iterator.hasNext()) {
+				if (sortedMap.size() < 2) {
+					return;
+				}
+
+				Entry<Integer, PixelContainer> e = iterator.next();
+				List<int[]> points = e.getValue().pointList;
+				int minX = maxInt;
+				for (int[] point : points) {
+					minX = Math.min(minX, point[0]);
+				}
+
+				// 如果连最小值都位于屏幕右边，此值定有问题
+				if (minX > position[0]) {
+					iterator.remove();
+				}
 			}
 		}
 
-		if (!found) {
-			countMap.put(rgb.pixel, new PixelContainer(point));
+		// 瓶子中心点位于左方、下一中心最大值一定位于瓶子中心点右方
+		else {
+			while (iterator.hasNext()) {
+				if (sortedMap.size() < 2) {
+					return;
+				}
+
+				Entry<Integer, PixelContainer> e = iterator.next();
+				List<int[]> points = e.getValue().pointList;
+				int maxX = minInt;
+				for (int[] point : points) {
+					maxX = Math.max(maxX, point[0]);
+				}
+
+				// 如果连最大值都位于屏幕左边，此值定有问题
+				if (maxX < position[0]) {
+					iterator.remove();
+				}
+			}
+		}
+	}
+
+	/**
+	 * 移除目标块高度切面
+	 * 
+	 * @param sortedMap 集合点
+	 */
+	private void removeTargetBottom(Map<Integer, PixelContainer> sortedMap, int width) {
+		if (sortedMap.size() < 2) {
+			return;
+		}
+
+		int min = maxInt;
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (sortedMap.size() < 2) {
+				return;
+			}
+
+			Entry<Integer, PixelContainer> e = iterator.next();
+			int value = Math.min(min, getMinPoint(e.getValue().pointList));
+
+			// 当间iterator要小一些
+			if (value != min && min != maxInt) {
+
+			}
 		}
 	}
 
@@ -281,13 +351,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			int i = 0;
-			Color[] colors = new Color[] { Color.blue, Color.green, Color.orange };
-			for (PixelContainer pixel : NEXT_CENTER.pixels) {
-				i++;
-				graphics.setColor(colors[i % 3]);
-				NEXT_CENTER.debug(graphics, pixel.pointList);
-			}
+			NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
 
 			graphics.setColor(Color.red);
 			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);// 标记位置
