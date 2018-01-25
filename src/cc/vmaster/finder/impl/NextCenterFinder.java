@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
 import cc.vmaster.finder.helper.XLineAscComparator;
+import cc.vmaster.finder.helper.YLineAscComparator;
 import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
@@ -64,7 +66,6 @@ public class NextCenterFinder extends TimeRecodFinder {
 		for (int y = beginPoint[1]; y < endPoint[1]; y++) {
 			changeBgColor(image, y, width);
 
-			System.out.println(RGB_TARGET_BG);
 			for (int x = beginPoint[0]; x < endPoint[0]; x++) {
 				RGB rgb = RGB.calcRGB(image.getRGB(x, y));
 
@@ -72,32 +73,35 @@ public class NextCenterFinder extends TimeRecodFinder {
 					continue;
 				}
 
-				classifyPixel(rgb, new int[] { x, y }, 16);
+				classifyPixel(rgb, new int[] { x, y }, 30);
 			}
 		}
 
 		Map<Integer, PixelContainer> sortedMap = MapHelper.reorderCountMap(countMap);
 		MapHelper.removeUseless(sortedMap, 0, 4);
-		removeImposible(sortedMap, width);
+		removeImposible(sortedMap, width, endPoint[1]);
 
+		// 经过上述移除操作，此时一定只剩唯点集合
 		for (PixelContainer pixel : sortedMap.values()) {
 			points.addAll(pixel.pointList);
 		}
 
+		removeDiscontinuousPoints(width);// 移除不连续的点
 		Collections.sort(points, XLineAscComparator.instance);
 
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
 
-		return new int[] { (min[0] + max[0]) / 2, min[1] };
+		return new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
 	}
 
 	/**
 	 * 移除不太可能的点，比如点最大值与最小值相差太大
 	 */
-	private void removeImposible(Map<Integer, PixelContainer> sortedMap, int width) {
-		removeByPosition(sortedMap, width);
-		removeTargetBottom(sortedMap);
+	private void removeImposible(Map<Integer, PixelContainer> sortedMap, int width, int maxY) {
+		removeByPosition(sortedMap, width);// 移除位置不可能的部分
+		removeByBottle(sortedMap, maxY);// 移除瓶子头部区域
+		removeTargetBottom(sortedMap);// 可移除目标块高度切面部分
 	}
 
 	/**
@@ -165,6 +169,32 @@ public class NextCenterFinder extends TimeRecodFinder {
 	}
 
 	/**
+	 * 移除瓶子头部圆球处所有坐标：瓶子颈部空白高度10px,瓶子圆球直径60px
+	 * 
+	 * @param sortedMap 集合块
+	 * @param endY 由BottleTopFinder计算出的瓶子顶部高度，此处为瓶子颈部坐标
+	 */
+	private void removeByBottle(Map<Integer, PixelContainer> sortedMap, int endY) {
+		int maxY = endY - 10;
+		int minY = endY - 70;
+		int maxX = position[0] + 30;
+		int minX = position[0] - 30;
+
+		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
+		while (iterator.hasNext()) {
+			PixelContainer container = iterator.next().getValue();
+			for (int[] point : container.pointList) {
+				int x = point[0];
+				int y = point[1];
+				if (minX < x && x < maxX && minY < y && y < maxY) {
+					iterator.remove();
+					break;
+				}
+			}
+		}
+	}
+
+	/**
 	 * 移除目标块高度切面：目标块最低点坐标一定大于其高度最高点，因此只需找出最高点，即可移除影子及高度切面。但要注意目标块以外物体
 	 * 
 	 * @param sortedMap 集合点
@@ -197,6 +227,69 @@ public class NextCenterFinder extends TimeRecodFinder {
 					System.out.println("通过目标块高度切面移除");
 				}
 			}
+		}
+	}
+
+	/**
+	 * 移除不连续的Y点：从最高处开始，Y点数小的才是目标块点
+	 * 
+	 * 移除不连续的X点：从最左边开始，将不连续的点进行分组，然后移除不可能组，得到最终点集合
+	 */
+	private void removeDiscontinuousPoints(int width) {
+		removeYLineDiscontinuousPoints();
+		removeXLineDiscontinuousPoints(width);
+		removeYLineDiscontinuousPoints();
+	}
+
+	/**
+	 * 按Y轴将不连续的点移除、最上面的点才是正确的点
+	 */
+	private void removeYLineDiscontinuousPoints() {
+		int maxY = minInt;
+		Collections.sort(points, YLineAscComparator.instance);
+		Iterator<int[]> iterator = points.iterator();
+		while (iterator.hasNext()) {
+			int[] point = iterator.next();
+			if (maxY == minInt || point[1] - maxY <= 1) {
+				maxY = Math.max(maxY, point[1]);
+			} else {
+				iterator.remove();
+				maxY = Math.max(maxY, point[1]);
+			}
+		}
+	}
+
+	/**
+	 * 按X轴将不连续的点移除、此处有风险，保留点数多的集合。并将结果同步回points中
+	 */
+	private void removeXLineDiscontinuousPoints(int width) {
+		int maxX = minInt;
+		Map<Integer, PixelContainer> map = new HashMap<Integer, PixelContainer>();
+		Collections.sort(points, XLineAscComparator.instance);
+		Iterator<int[]> iterator = points.iterator();
+		while (iterator.hasNext()) {
+			int[] point = iterator.next();
+			if (maxX == minInt || point[0] - maxX <= 1) {
+				maxX = Math.max(maxX, point[0]);
+				if (map.size() == 0) {
+					map.put(1, new PixelContainer(point));
+				} else {
+					map.get(map.size()).addCount(point);
+				}
+			} else {
+				iterator.remove();
+				maxX = Math.max(maxX, point[0]);
+				map.put(map.size() + 1, new PixelContainer(point));
+			}
+		}
+
+		Map<Integer, PixelContainer> sortedMap = MapHelper.reorderCountMap(map);
+		removeByPosition(sortedMap, width);
+		MapHelper.removeUseless(sortedMap, 0, 1);
+
+		points.clear();
+		for (PixelContainer pixel : sortedMap.values()) {
+			points.addAll(pixel.pointList);
 		}
 	}
 

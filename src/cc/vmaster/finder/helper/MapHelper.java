@@ -81,12 +81,14 @@ public class MapHelper {
 		}
 	}
 
-	public static void removeByLength(Map<Integer, PixelContainer> sortedMap, boolean debug) {
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-
-		// 区域长度
+	/**
+	 * 通过目标块最大宽度或最大高度移除
+	 * 
+	 * @param sortedMap
+	 * @param maxLength 目标块可能的最大宽度及高度
+	 * @param debug 是否Debug模式
+	 */
+	public static void removeByLength(Map<Integer, PixelContainer> sortedMap, int maxLength, boolean debug) {
 		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 			List<int[]> points = iterator.next().getValue().pointList;
@@ -97,7 +99,7 @@ public class MapHelper {
 
 				int[] min = points.get(0);
 				int[] max = points.get(points.size() - 1);
-				if ((max[0] - min[0]) > 500) {
+				if ((max[0] - min[0]) > maxLength) {
 					if (debug) {
 						System.out.println("通过横长移除");
 					}
@@ -113,40 +115,9 @@ public class MapHelper {
 
 				int[] min = points.get(0);
 				int[] max = points.get(points.size() - 1);
-				if ((max[0] - min[0]) > 500) {
+				if ((max[0] - min[0]) > maxLength) {
 					if (debug) {
 						System.out.println("通过纵长移除");
-					}
-
-					iterator.remove();
-					continue;
-				}
-			}
-		}
-
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-	}
-
-	// 按数量移除
-	public static void removeByCount(Map<Integer, PixelContainer> sortedMap, boolean debug) {
-		if (sortedMap.size() <= 1) {
-			return;
-		}
-
-		// 按数量移除
-		int size = sortedMap.size();
-		int removeMinCount = size - 1;// 留1个
-		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
-		while (iterator.hasNext()) {
-			iterator.next();
-
-			if (sortedMap.size() > 1) {
-				removeMinCount++;
-				if (size - removeMinCount < 0) {
-					if (debug) {
-						System.out.println("通过统计数量移除");
 					}
 
 					iterator.remove();
