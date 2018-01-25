@@ -39,7 +39,6 @@ import cc.vmaster.helper.RGB;
 public class NextCenterFinder extends TimeRecodFinder {
 
 	private int[] position;
-	private RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
 	private final RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
 
 	public static NextCenterFinder getInstance() {
@@ -63,28 +62,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		int width = image.getWidth();
 		for (int y = beginPoint[1]; y < endPoint[1]; y++) {
-			// changeBgColor(image, this.RGB_TARGET_BG, y, width);
-			RGB bg1 = RGB.calcRGB(image.getRGB(width - 5, y));
-			RGB bg2 = RGB.calcRGB(image.getRGB(5, y));
+			changeBgColor(image, y, width);
 
-			// 首次进入肯定会取、依赖于clearDebug()清除上次记录
-			if (RGB_TARGET_BG.pixel == 0) {
-				if (matched(bg1, bg2, 10)) {
-					RGB_TARGET_BG = bg1;
-				} else {
-					if (matched(bg1, RGB_TARGET_BG, 10)) {
-						RGB_TARGET_BG = bg1;
-					} else if (matched(bg2, RGB_TARGET_BG, 10)) {
-						RGB_TARGET_BG = bg2;
-					}
-				}
-
-			}
-
-			// 仅BG1与BG2相等时才切换
-			if (matched(bg1, bg2, 10)) {
-				RGB_TARGET_BG = bg1;
-			}
 			System.out.println(RGB_TARGET_BG);
 			for (int x = beginPoint[0]; x < endPoint[0]; x++) {
 				RGB rgb = RGB.calcRGB(image.getRGB(x, y));
@@ -109,7 +88,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
-		
+
 		return new int[] { (min[0] + max[0]) / 2, min[1] };
 	}
 

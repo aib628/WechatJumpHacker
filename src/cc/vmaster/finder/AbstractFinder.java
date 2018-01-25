@@ -2,6 +2,7 @@ package cc.vmaster.finder;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -98,6 +99,37 @@ public abstract class AbstractFinder implements IFinder {
 		}
 
 		return false;
+	}
+
+	/**
+	 * 切换背景颜色
+	 * 
+	 * @param image 图片
+	 * @param y 当前Y
+	 * @param width 手机屏宽
+	 */
+	protected void changeBgColor(BufferedImage image, int y, int width) {
+		RGB bg1 = RGB.calcRGB(image.getRGB(width - 5, y));
+		RGB bg2 = RGB.calcRGB(image.getRGB(5, y));
+
+		// 首次进入肯定会取、依赖于clearDebug()清除上次记录
+		if (RGB_TARGET_BG.pixel == 0) {
+			if (matched(bg1, bg2, 10)) {
+				RGB_TARGET_BG = bg1;
+			} else {
+				if (matched(bg1, RGB_TARGET_BG, 10)) {
+					RGB_TARGET_BG = bg1;
+				} else if (matched(bg2, RGB_TARGET_BG, 10)) {
+					RGB_TARGET_BG = bg2;
+				}
+			}
+
+		}
+
+		// 仅BG1与BG2相等时才切换
+		if (matched(bg1, bg2, 10)) {
+			RGB_TARGET_BG = bg1;
+		}
 	}
 
 	/**
