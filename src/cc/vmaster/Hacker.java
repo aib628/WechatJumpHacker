@@ -88,6 +88,7 @@ public class Hacker {
 		for (;; executeCount++) {
 			File imageFile = new File(inputDirectory, imageCount++ + ".png");
 			if (imageFile.exists() && !debug) {
+				NEXT_CENTER.setImageFile(imageFile);
 				imageFile.deleteOnExit();
 			}
 

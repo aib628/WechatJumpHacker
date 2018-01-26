@@ -3,8 +3,10 @@ package cc.vmaster.finder.impl;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,6 +15,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -42,6 +46,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 	private int[] position;
 	private final RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
+	private BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+	private final Pattern PATTERN_POINT = Pattern.compile("^\\((-*[0-9]+),(-*[0-9]+)\\)$");
 
 	public static NextCenterFinder getInstance() {
 		return new NextCenterFinder();
@@ -92,7 +98,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
 
-		return new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
+		int[] point = new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
+		makeupPoint(image, point, image.getHeight());
+
+		return point;
 	}
 
 	/**
@@ -290,6 +299,108 @@ public class NextCenterFinder extends TimeRecodFinder {
 		points.clear();
 		for (PixelContainer pixel : sortedMap.values()) {
 			points.addAll(pixel.pointList);
+		}
+	}
+
+	/**
+	 * 对point进行修正，以精确中心位置
+	 * 
+	 * @param point 当前坐标
+	 */
+	private void makeupPoint(BufferedImage image, int[] point, int height) {
+		int minY = maxInt;
+		int maxY = minInt;
+		int xline = point[0];
+		int yline = point[1];
+		RGB rgb = RGB.calcRGB(image.getRGB(xline, yline));
+		if (matched(rgb, RGB_TARGET_BG, 16)) {
+			System.out.println("下一中心点识别遇到问题，请确认输出图片标记是否正确（Y/N）");
+			try {
+				inputConfirm(image, point);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		boolean[] flag = new boolean[] { false, false };
+		for (int y = yline; y < height; y++) {
+			if (!flag[0]) {
+				RGB pointRGB = RGB.calcRGB(image.getRGB(point[0], y));
+				if (!matched(pointRGB, rgb, 10)) {
+					maxY = Math.max(maxY, y);
+					flag[0] = true;
+				}
+			}
+
+			if (!flag[1] && yline * 2 - y < height) {
+				RGB pointRGB = RGB.calcRGB(image.getRGB(point[0], yline * 2 - y));
+				if (!matched(pointRGB, rgb, 10)) {
+					minY = Math.min(minY, yline * 2 - y);
+					flag[1] = true;
+				}
+			}
+
+			if (flag[0] && flag[1]) {
+				break;
+			}
+		}
+
+		point[1] = (minY + maxY) / 2;
+	}
+
+	/**
+	 * 调整位置
+	 * 
+	 * @param image
+	 * @param point 当前点
+	 * @throws IOException
+	 */
+	private void inputConfirm(BufferedImage image, int[] point) throws IOException {
+		String str = reader.readLine();
+		if ("Y".equalsIgnoreCase(str)) {
+			// 无操作
+		} else if ("N".equalsIgnoreCase(str)) {
+			System.out.println("请输入调整坐标偏移，如(12,-13)代表X轴向右移12且Y轴向上移13个像素点.");
+			inputAdjust(image, point);
+		} else {
+			System.out.println("继续（Y）/辅助调整位置（N）后回车");
+			inputConfirm(image, point);
+		}
+	}
+
+	/**
+	 * 调整位置
+	 * 
+	 * @param image
+	 * @param point 当前点
+	 * @throws IOException
+	 */
+	private void inputAdjust(BufferedImage image, int[] point) throws IOException {
+		String str = reader.readLine();
+		Matcher matcher = PATTERN_POINT.matcher(str);
+		if (matcher.matches()) {
+			StringBuilder sb = new StringBuilder("调整结果:");
+			sb.append(String.format("(%s,%s) - >", point[0], point[1]));
+
+			point[0] = point[0] + Integer.parseInt(matcher.group(1));
+			point[1] = point[1] + Integer.parseInt(matcher.group(2));
+
+			Graphics graphics = image.getGraphics();
+			graphics.setColor(Color.white);
+			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
+			graphics.dispose();
+
+			if (imageFile != null) {
+				String fileType = imageFile.getName().substring(imageFile.getName().lastIndexOf('.') + 1);
+				ImageIO.write(image, fileType, imageFile);
+			}
+
+			System.out.println(sb.append(String.format("(%s,%s)", point[0], point[1])));
+			System.out.println("继续游戏(Y),再次调整(N)");
+			inputConfirm(image, point);
+		} else {
+			System.out.println("坐标格式为：(x,y)");
+			inputAdjust(image, point);
 		}
 	}
 

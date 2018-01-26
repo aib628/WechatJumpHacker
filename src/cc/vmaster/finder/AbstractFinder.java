@@ -3,6 +3,7 @@ package cc.vmaster.finder;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -18,9 +19,14 @@ public abstract class AbstractFinder implements IFinder {
 	protected final Map<Integer, PixelContainer> countMap = new HashMap<Integer, PixelContainer>();
 	protected final List<PixelContainer> pixels = new ArrayList<PixelContainer>();
 	protected final List<int[]> points = new ArrayList<int[]>();
-	protected RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
 	protected RGB RGB_TARGET_BOTTLE = new RGB(40, 43, 86);// 默认瓶子RGB色值
+	protected RGB RGB_TARGET_BG = new RGB(255, 210, 210);// 默认背景色
+	protected File imageFile;// 记录当前File，以便调试
 	private boolean debug = false;// 默认不启动，以加速
+
+	public void setImageFile(File imageFile) {
+		this.imageFile = imageFile;
+	}
 
 	/**
 	 * 清除Debug数据，以方便下一次Debug
