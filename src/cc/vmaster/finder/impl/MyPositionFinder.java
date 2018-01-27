@@ -49,10 +49,8 @@ public class MyPositionFinder extends TimeRecodFinder {
 			for (int y = beginPoint[1]; y < endPoint[1]; y++) {
 				int pixel = image.getRGB(x, y);
 				RGB rgb = RGB.calcRGB(pixel);
-				if (this.matched(rgb, RGB_TARGET_BOTTLE, 16)) {
-					if (debug()) {
-						points.add(new int[] { x, y });
-					}
+				if (matched(rgb, RGB_TARGET_BOTTLE, 16)) {
+					points.add(new int[] { x, y });
 				}
 			}
 		}
