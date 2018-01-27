@@ -87,8 +87,8 @@ public class Hacker {
 		int executeCount = 1;
 		for (;; executeCount++) {
 			File imageFile = new File(inputDirectory, imageCount++ + ".png");
+			NEXT_CENTER.setImageFile(imageFile);
 			if (imageFile.exists() && !debug) {
-				NEXT_CENTER.setImageFile(imageFile);
 				imageFile.deleteOnExit();
 			}
 
@@ -123,6 +123,8 @@ public class Hacker {
 
 			int[] bottleTop = BOTTLE_TOP.find(image, position, null);
 			int skipHeight = position[1] - bottleTop[1];
+
+			NEXT_CENTER.setPosition(position);
 			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
 			int[] nextCenter = NEXT_CENTER.find(image, Phone.getBeginPoint(), nextCenterEndPoint);
 			if (CoordinateChecker.invalidPoint(nextCenter)) {
@@ -137,7 +139,7 @@ public class Hacker {
 			int[] whitePoint = WHITE_POINT.find(image, whiteBeginPoint, whiteEndPoint);
 			if (!CoordinateChecker.invalidPoint(whitePoint)) {
 				hitCount++;
-				nextCenterEndPoint = whitePoint;
+				nextCenter = whitePoint;
 				System.out.println(String.format("目标中心坐标：(%s,%s)", whitePoint[0], whitePoint[1]));
 			}
 

@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 import cc.vmaster.finder.TimeRecodFinder;
+import cc.vmaster.helper.RGB;
 
 /**
  * 寻找一下目标位置中的白色中心点,如果有
@@ -18,7 +19,7 @@ import cc.vmaster.finder.TimeRecodFinder;
  */
 public class WhiterPointFinder extends TimeRecodFinder {
 
-	private final int TARGET = 245;
+	private final RGB RGB_TARGET_WHITE_POINT = new RGB(245, 245, 245);
 
 	public static WhiterPointFinder getInstance() {
 		return new WhiterPointFinder();
@@ -38,11 +39,8 @@ public class WhiterPointFinder extends TimeRecodFinder {
 
 		for (int i = x1; i <= x2; i++) {
 			for (int j = y1; j <= y2; j++) {
-				int pixel = image.getRGB(i, j);
-				int r = (pixel & 0xff0000) >> 16;
-				int g = (pixel & 0xff00) >> 8;
-				int b = (pixel & 0xff);
-				if (r == TARGET && g == TARGET && b == TARGET) {
+				RGB rgb = RGB.calcRGB(image.getRGB(i, j));
+				if (matched(rgb, RGB_TARGET_WHITE_POINT, 5)) {
 					boolean[][] vMap = new boolean[width][height];
 					Queue<int[]> queue = new ArrayDeque<>();
 					int[] pos = { i, j };
@@ -59,11 +57,8 @@ public class WhiterPointFinder extends TimeRecodFinder {
 							continue;
 						}
 						vMap[x][y] = true;
-						pixel = image.getRGB(x, y);
-						r = (pixel & 0xff0000) >> 16;
-						g = (pixel & 0xff00) >> 8;
-						b = (pixel & 0xff);
-						if (r == TARGET && g == TARGET && b == TARGET) {
+						rgb = RGB.calcRGB(image.getRGB(x, y));
+						if (matched(rgb, RGB_TARGET_WHITE_POINT, 5)) {
 							maxX = Math.max(maxX, x);
 							minX = Math.min(minX, x);
 							maxY = Math.max(maxY, y);

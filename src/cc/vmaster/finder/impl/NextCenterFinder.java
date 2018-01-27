@@ -29,6 +29,7 @@ import cc.vmaster.finder.helper.YLineAscComparator;
 import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
+import cc.vmaster.helper.MathUtils;
 import cc.vmaster.helper.RGB;
 
 /**
@@ -87,19 +88,23 @@ public class NextCenterFinder extends TimeRecodFinder {
 		MapHelper.removeUseless(sortedMap, 0, 4);
 		removeImposible(sortedMap, width, endPoint[1]);
 
-		// 经过上述移除操作，此时一定只剩唯点集合
-		for (PixelContainer pixel : sortedMap.values()) {
-			points.addAll(pixel.pointList);
+		int[] point = new int[] { 0, 0 };
+		if (sortedMap.size() == 0) {
+			inputConfirm(image, point, "识别遇到问题，请手动调整，继续（Y）");
+		} else {
+			// 经过上述移除操作，此时一定只剩唯点集合
+			for (PixelContainer pixel : sortedMap.values()) {
+				points.addAll(pixel.pointList);
+			}
+
+			removeDiscontinuousPoints(width);// 移除不连续的点
+
+			Collections.sort(points, XLineAscComparator.instance);
+			int[] min = points.get(0);
+			int[] max = points.get(points.size() - 1);
+			point = new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
+			makeupPoint(image, point, image.getHeight());
 		}
-
-		removeDiscontinuousPoints(width);// 移除不连续的点
-
-		Collections.sort(points, XLineAscComparator.instance);
-		int[] min = points.get(0);
-		int[] max = points.get(points.size() - 1);
-
-		int[] point = new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
-		makeupPoint(image, point, image.getHeight());
 
 		return point;
 	}
@@ -122,6 +127,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	private void removeByPosition(Map<Integer, PixelContainer> sortedMap, int width) {
 		// 由于瓶子当前位置不停变化，此处只有手动传入时才会生效
 		if (position == null) {
+			System.out.println("程序未设置当前位置");
 			return;
 		}
 
@@ -184,19 +190,25 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @param endY 由BottleTopFinder计算出的瓶子顶部高度，此处为瓶子颈部坐标
 	 */
 	private void removeByBottle(Map<Integer, PixelContainer> sortedMap, int endY) {
-		int maxY = endY - 10;
-		int minY = endY - 70;
-		int maxX = position[0] + 30;
-		int minX = position[0] - 30;
+		// 由于瓶子当前位置不停变化，此处只有手动传入时才会生效
+		if (position == null) {
+			System.out.println("程序未设置当前位置");
+			return;
+		}
+
+		int[] point0 = new int[] { position[0], endY - 40 };// 瓶子头部圆心坐标
 
 		Iterator<Entry<Integer, PixelContainer>> iterator = sortedMap.entrySet().iterator();
 		while (iterator.hasNext()) {
 			PixelContainer container = iterator.next().getValue();
 			for (int[] point : container.pointList) {
-				int x = point[0];
-				int y = point[1];
-				if (minX < x && x < maxX && minY < y && y < maxY) {
+				int r = MathUtils.calcDistance(point0, point);
+				if (r < 25) {
 					iterator.remove();
+					if (debug()) {
+						System.out.println("通过瓶子头部移除");
+					}
+
 					break;
 				}
 			}
@@ -337,8 +349,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 			return;
 		}
 
-		// 如果导致Y轴跨度小于此值，则取消操作，解决目标块环状图形
-		if (maxY - min[1] < 20) {
+		// 如果导致Y轴跨度小于此值，则取消操作，解决目标块环状图形以及背景在正上方图形
+		if (maxY - min[1] < 30) {
 			return;
 		}
 
@@ -352,7 +364,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 	}
 
 	/**
-	 * 对point进行修正，以精确中心位置：通过当前向上下方向搜索颜色相近坐标，并扩展，以取得最佳Y轴位置,颜色匹配误差不可太大，否则反而会出错(主要适用于纯色目标块)
+	 * 对point进行修正，以精确中心位置：通过当前向上下方向搜索颜色相近坐标，并扩展，以取得最佳Y轴位置,颜色匹配误差不可太大，否则反而会出错(主要适用于纯色目标块)。经过测试中心白点会对该方法造成干扰，不过可以不用处理，
+	 * 后续会替换为白点位置
 	 * 
 	 * @param point 当前坐标
 	 */
@@ -362,14 +375,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 		int xline = point[0];
 		int yline = point[1];
 		RGB rgb = RGB.calcRGB(image.getRGB(xline, yline));
-		if (matched(rgb, RGB_TARGET_BG, 16)) {
-			System.out.println("下一中心点识别遇到问题，请确认输出图片标记是否正确（Y/N）");
-			try {
-				inputConfirm(image, point);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
+		if (matched(rgb, RGB_TARGET_BG, 5)) {
+			inputConfirm(image, point, "下一中心点识别遇到问题，请确认输出图片标记是否正确（Y/N）");
 			return;// 人工干预，直接返回
 		}
 
@@ -406,16 +413,21 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @param point 当前点
 	 * @throws IOException
 	 */
-	private void inputConfirm(BufferedImage image, int[] point) throws IOException {
-		String str = reader.readLine();
-		if ("Y".equalsIgnoreCase(str)) {
-			// 无操作
-		} else if ("N".equalsIgnoreCase(str)) {
-			System.out.println("请输入调整坐标偏移，如(12,-13)代表X轴向右移12且Y轴向上移13个像素点.");
-			inputAdjust(image, point);
-		} else {
-			System.out.println("继续（Y）/辅助调整位置（N）后回车");
-			inputConfirm(image, point);
+	private void inputConfirm(BufferedImage image, int[] point, String tips) {
+		System.out.println(tips);
+
+		try {
+			String str = reader.readLine();
+			if ("Y".equalsIgnoreCase(str)) {
+				// 无操作
+			} else if ("N".equalsIgnoreCase(str)) {
+				inputAdjust(image, point, "请输入调整坐标偏移，如(12,-13)代表X轴向右移12且Y轴向上移13个像素点.");
+			} else {
+				System.out.println("继续（Y）/辅助调整位置（N）后回车");
+				inputConfirm(image, point, tips);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -426,7 +438,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @param point 当前点
 	 * @throws IOException
 	 */
-	private void inputAdjust(BufferedImage image, int[] point) throws IOException {
+	private void inputAdjust(BufferedImage image, int[] point, String tips) throws IOException {
 		String str = reader.readLine();
 		Matcher matcher = PATTERN_POINT.matcher(str);
 		if (matcher.matches()) {
@@ -453,11 +465,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 				System.out.println("程序未设置当前处理文件...");
 			}
 
-			System.out.println("调整已OK继续游戏(Y),再次调整(N)");
-			inputConfirm(image, point);
+			inputConfirm(image, point, "调整已OK继续游戏(Y),再次调整(N)");
 		} else {
-			System.out.println("坐标格式为：(x,y)");
-			inputAdjust(image, point);
+			inputAdjust(image, point, "坐标格式为：(x,y)");
 		}
 	}
 
@@ -477,6 +487,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 				continue;
 			}
 
+			System.out.println("当前处理文件：" + file.getAbsolutePath());
 			NEXT_CENTER.setImageFile(file);
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
@@ -511,7 +522,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			// NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+
 			graphics.setColor(Color.BLACK);
 			NEXT_CENTER.debug(graphics, NEXT_CENTER.points);
 
