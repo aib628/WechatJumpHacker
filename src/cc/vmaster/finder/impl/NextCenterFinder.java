@@ -80,7 +80,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 					continue;
 				}
 
-				classifyPixel(rgb, new int[] { x, y }, 5);
+				classifyPixel(rgb, new int[] { x, y }, 10);
 			}
 		}
 
@@ -92,7 +92,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 		if (sortedMap.size() == 0) {
 			inputConfirm(image, point, "识别遇到问题，请手动调整，继续（Y）");
 		} else {
-			// 经过上述移除操作，此时一定只剩唯点集合
+			// 经过上述移除操作，此时一定只剩唯一点集合
 			for (PixelContainer pixel : sortedMap.values()) {
 				points.addAll(pixel.pointList);
 			}
@@ -522,7 +522,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			//NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
 
 			graphics.setColor(Color.BLACK);
 			NEXT_CENTER.debug(graphics, NEXT_CENTER.points);
