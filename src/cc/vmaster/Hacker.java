@@ -183,6 +183,8 @@ public class Hacker {
 			try {
 				if (autoMode) {
 					Thread.sleep(3_000 + RANDOM.nextInt(3000));
+				} else {
+					Thread.sleep(distance);// 防止按快，导致截图有问题而结束
 				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -230,7 +232,7 @@ public class Hacker {
 		String mode = reader.readLine();
 		if ("mode".equalsIgnoreCase(mode)) {
 			autoMode = !autoMode;
-		} else if (mode.length() > 0) {
+		} else if (mode != null && mode.length() > 0) {
 			try {
 				JUMP_RATIO = Float.parseFloat(mode);
 			} catch (Exception e) {
