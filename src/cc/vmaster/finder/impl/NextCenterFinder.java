@@ -79,7 +79,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 					continue;
 				}
 
-				classifyPixel(rgb, new int[] { x, y }, 30);
+				classifyPixel(rgb, new int[] { x, y }, 5);
 			}
 		}
 
@@ -93,8 +93,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		removeDiscontinuousPoints(width);// 移除不连续的点
-		Collections.sort(points, XLineAscComparator.instance);
 
+		Collections.sort(points, XLineAscComparator.instance);
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
 
@@ -245,9 +245,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * 移除不连续的X点：从最左边开始，将不连续的点进行分组，然后移除不可能组，得到最终点集合
 	 */
 	private void removeDiscontinuousPoints(int width) {
-		removeYLineDiscontinuousPoints();
-		removeXLineDiscontinuousPoints(width);
-		removeYLineDiscontinuousPoints();
+		removeYLineDiscontinuousPoints();// 按Y轴将不连续的点移除、最上面的点才是正确的点
+		removeXLineDiscontinuousPoints(width);// 按X轴将不连续的点移除、此处有风险，保留点数多的集合。并将结果同步回points中
+		removeYLineDiscontinuousPoints();// 按Y轴将不连续的点移除、最上面的点才是正确的点
+		removeXLineDiscontinuousPoints();// 以X轴为中线，将不在该线上连续的点移除，解决药瓶上下大小不一致且颜色相同的问题。
 	}
 
 	/**
@@ -303,7 +304,55 @@ public class NextCenterFinder extends TimeRecodFinder {
 	}
 
 	/**
-	 * 对point进行修正，以精确中心位置
+	 * 以X轴为中线，将不在该线上连续的点移除，解决药瓶上下大小不一致且颜色相同的问题。
+	 */
+	private void removeXLineDiscontinuousPoints() {
+		Collections.sort(points, XLineAscComparator.instance);
+		int[] min = points.get(0);
+		int[] max = points.get(points.size() - 1);
+		int xline = (min[0] + max[0]) / 2;// 得到X中轴线位置，要求在该线上，Y轴连续
+
+		int maxY = minInt;
+		Collections.sort(points, YLineAscComparator.instance);
+		min = points.get(0);
+		max = points.get(points.size() - 1);
+
+		for (int y = min[1]; y <= max[1]; y++) {
+			boolean found = false;
+			for (int[] point : points) {
+				if (point[1] == y && point[0] == xline) {
+					found = true;
+					maxY = Math.max(maxY, y);
+					break;
+				}
+			}
+
+			if (!found) {
+				break;
+			}
+		}
+
+		// 一个都没找到，取消操作
+		if (maxY == minInt) {
+			return;
+		}
+
+		// 如果导致Y轴跨度小于此值，则取消操作，解决目标块环状图形
+		if (maxY - min[1] < 20) {
+			return;
+		}
+
+		Iterator<int[]> iterator = points.iterator();
+		while (iterator.hasNext()) {
+			int[] point = iterator.next();
+			if (point[1] > maxY) {
+				iterator.remove();
+			}
+		}
+	}
+
+	/**
+	 * 对point进行修正，以精确中心位置：通过当前向上下方向搜索颜色相近坐标，并扩展，以取得最佳Y轴位置,颜色匹配误差不可太大，否则反而会出错(主要适用于纯色目标块)
 	 * 
 	 * @param point 当前坐标
 	 */
@@ -321,14 +370,14 @@ public class NextCenterFinder extends TimeRecodFinder {
 				e.printStackTrace();
 			}
 
-			return;// 错误位置不再调整
+			return;// 人工干预，直接返回
 		}
 
 		boolean[] flag = new boolean[] { false, false };
 		for (int y = yline; y < height; y++) {
 			if (!flag[0]) {
 				RGB pointRGB = RGB.calcRGB(image.getRGB(point[0], y));
-				if (!matched(pointRGB, rgb, 10)) {
+				if (!matched(pointRGB, rgb, 5)) {
 					maxY = Math.max(maxY, y);
 					flag[0] = true;
 				}
@@ -336,7 +385,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 			if (!flag[1] && yline * 2 - y < height) {
 				RGB pointRGB = RGB.calcRGB(image.getRGB(point[0], yline * 2 - y));
-				if (!matched(pointRGB, rgb, 10)) {
+				if (!matched(pointRGB, rgb, 5)) {
 					minY = Math.min(minY, yline * 2 - y);
 					flag[1] = true;
 				}
@@ -396,8 +445,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 			if (imageFile != null) {
 				String fileType = imageFile.getName().substring(imageFile.getName().lastIndexOf('.') + 1);
-				ImageIO.write(image, fileType, imageFile);
-				System.out.println("请查看文件，确认调整结果：" + imageFile.getAbsolutePath());
+				String filePath = imageFile.getAbsolutePath().replace("." + fileType, "_adjusted." + fileType);
+				File adjustFile = new File(filePath);
+				ImageIO.write(image, fileType, adjustFile);
+				System.out.println("请查看文件，确认调整结果：" + adjustFile.getAbsolutePath());
 			} else {
 				System.out.println("程序未设置当前处理文件...");
 			}
