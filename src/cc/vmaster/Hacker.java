@@ -29,7 +29,7 @@ public class Hacker {
 
 	private static boolean debug = true;
 
-	private static boolean autoMode = false;
+	private static volatile boolean autoMode = false;
 
 	/**
 	 * 图片数量
@@ -49,7 +49,7 @@ public class Hacker {
 	/**
 	 * 弹跳系数。获取屏幕分辨率
 	 */
-	private static float JUMP_RATIO = 1.500f;
+	private static volatile float JUMP_RATIO = 1.500f;
 
 	/**
 	 * 记录上次瓶子位置
@@ -81,7 +81,24 @@ public class Hacker {
 
 		File inputDirectory = initInputDirectory();
 		System.out.println("WorkHome: " + inputDirectory.getAbsolutePath());
-		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				while (true) {
+					if (autoMode) {
+						try {
+							listenInput(reader);
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+
+		}).start();
 
 		int hitCount = 0;
 		int executeCount = 1;
@@ -93,16 +110,7 @@ public class Hacker {
 			}
 
 			if (!autoMode) {
-				System.out.println("按下Enter继续...");
-				String mode = reader.readLine();
-				if ("mode".equals(mode)) {
-					autoMode = !autoMode;
-				} else if (mode.length() > 0) {
-					try {
-						JUMP_RATIO = Float.parseFloat(mode);
-					} catch (Exception e) {
-					}
-				}
+				listenInput(reader);
 			}
 
 			if (!ImageHelper.getScreenShot(ADB_PATH, imageFile)) {
@@ -209,6 +217,25 @@ public class Hacker {
 		double a = Math.pow(endPoint[0] - beginPoint[0], 2);
 		double b = Math.pow(endPoint[1] - beginPoint[1], 2);
 		return Double.valueOf(Math.sqrt(a + b) * JUMP_RATIO).intValue();
+	}
+
+	/**
+	 * 监听输入
+	 * 
+	 * @param reader
+	 * @throws IOException
+	 */
+	private static void listenInput(BufferedReader reader) throws IOException {
+		System.out.println("输入选项【mode：切换自动模式及手动模式|数字：更改弹跳系数|空白：手动模式下继续】按下Enter继续...");
+		String mode = reader.readLine();
+		if ("mode".equalsIgnoreCase(mode)) {
+			autoMode = !autoMode;
+		} else if (mode.length() > 0) {
+			try {
+				JUMP_RATIO = Float.parseFloat(mode);
+			} catch (Exception e) {
+			}
+		}
 	}
 
 	private static void adjustRatio(int[] positionPoint) {
