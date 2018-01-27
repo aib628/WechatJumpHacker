@@ -203,7 +203,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			PixelContainer container = iterator.next().getValue();
 			for (int[] point : container.pointList) {
 				int r = MathUtils.calcDistance(point0, point);
-				if (r < 25) {
+				if (r <= 25) {
 					iterator.remove();
 					if (debug()) {
 						System.out.println("通过瓶子头部移除");
@@ -544,7 +544,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			// NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
 
 			graphics.setColor(Color.BLACK);
 			NEXT_CENTER.debug(graphics, NEXT_CENTER.points);
