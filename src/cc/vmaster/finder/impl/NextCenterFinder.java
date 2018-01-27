@@ -47,7 +47,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	private int[] position;
 	private final RGB RGB_TARGET_GAME_OVER = new RGB(51, 46, 44);// 游戏结束RGB色值
 	private BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-	private final Pattern PATTERN_POINT = Pattern.compile("^\\((-*[0-9]+),(-*[0-9]+)\\)$");
+	private final Pattern PATTERN_POINT = Pattern.compile("^\\(([-+]*[0-9]+),([-+]*[0-9]+)\\)$");
 
 	public static NextCenterFinder getInstance() {
 		return new NextCenterFinder();
@@ -320,6 +320,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+
+			return;// 错误位置不再调整
 		}
 
 		boolean[] flag = new boolean[] { false, false };
@@ -385,18 +387,22 @@ public class NextCenterFinder extends TimeRecodFinder {
 			point[0] = point[0] + Integer.parseInt(matcher.group(1));
 			point[1] = point[1] + Integer.parseInt(matcher.group(2));
 
+			System.out.println(sb.append(String.format("(%s,%s)", point[0], point[1])));
+
 			Graphics graphics = image.getGraphics();
-			graphics.setColor(Color.white);
-			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
+			graphics.setColor(Color.red);
+			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);
 			graphics.dispose();
 
 			if (imageFile != null) {
 				String fileType = imageFile.getName().substring(imageFile.getName().lastIndexOf('.') + 1);
 				ImageIO.write(image, fileType, imageFile);
+				System.out.println("请查看文件，确认调整结果：" + imageFile.getAbsolutePath());
+			} else {
+				System.out.println("程序未设置当前处理文件...");
 			}
 
-			System.out.println(sb.append(String.format("(%s,%s)", point[0], point[1])));
-			System.out.println("继续游戏(Y),再次调整(N)");
+			System.out.println("调整已OK继续游戏(Y),再次调整(N)");
 			inputConfirm(image, point);
 		} else {
 			System.out.println("坐标格式为：(x,y)");
@@ -420,6 +426,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 				continue;
 			}
 
+			NEXT_CENTER.setImageFile(file);
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
@@ -434,7 +441,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
 			int[] point = NEXT_CENTER.findAndRecord(image, Phone.getBeginPoint(), nextCenterEndPoint);
 			System.out.println(String.format("下一中心位置：(%s,%s)", point[0], point[1]));
-			System.out.println(String.format("匹配耗时(ms)：%s", NEXT_CENTER.getMilliCosts()));
+			System.out.println(String.format("匹配耗时(ms)：%s\n", NEXT_CENTER.getMilliCosts()));
 
 			File descFile = new File(url.getPath() + "/found", file.getName());
 			if (!descFile.exists()) {
