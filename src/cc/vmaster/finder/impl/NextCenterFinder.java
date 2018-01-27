@@ -80,7 +80,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 					continue;
 				}
 
-				classifyPixel(rgb, new int[] { x, y }, 10);
+				classifyPixel(rgb, new int[] { x, y }, 5);
 			}
 		}
 
@@ -97,7 +97,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 				points.addAll(pixel.pointList);
 			}
 
-			removeDiscontinuousPoints(width);// 移除不连续的点
+			removeDiscontinuousPoints(image, width);// 移除不连续的点
 
 			Collections.sort(points, XLineAscComparator.instance);
 			int[] min = points.get(0);
@@ -256,11 +256,11 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * 
 	 * 移除不连续的X点：从最左边开始，将不连续的点进行分组，然后移除不可能组，得到最终点集合
 	 */
-	private void removeDiscontinuousPoints(int width) {
+	private void removeDiscontinuousPoints(BufferedImage image, int width) {
 		removeYLineDiscontinuousPoints();// 按Y轴将不连续的点移除、最上面的点才是正确的点
 		removeXLineDiscontinuousPoints(width);// 按X轴将不连续的点移除、此处有风险，保留点数多的集合。并将结果同步回points中
 		removeYLineDiscontinuousPoints();// 按Y轴将不连续的点移除、最上面的点才是正确的点
-		removeXLineDiscontinuousPoints();// 以X轴为中线，将不在该线上连续的点移除，解决药瓶上下大小不一致且颜色相同的问题。
+		removeXLineDiscontinuousPoints(image);// 以X轴为中线，将不在该线上连续的点移除，解决药瓶上下大小不一致且颜色相同的问题。
 	}
 
 	/**
@@ -318,7 +318,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 	/**
 	 * 以X轴为中线，将不在该线上连续的点移除，解决药瓶上下大小不一致且颜色相同的问题。
 	 */
-	private void removeXLineDiscontinuousPoints() {
+	private void removeXLineDiscontinuousPoints(BufferedImage image) {
 		Collections.sort(points, XLineAscComparator.instance);
 		int[] min = points.get(0);
 		int[] max = points.get(points.size() - 1);
@@ -351,7 +351,29 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		// 如果导致Y轴跨度小于此值，则取消操作，解决目标块环状图形以及背景在正上方图形
 		if (maxY - min[1] < 30) {
-			return;
+			boolean found = false;// 寻找圆环的另一端
+			RGB rgb = RGB.calcRGB(image.getRGB(xline, maxY));
+			for (int y = maxY + 1; y < max[1]; y++) {
+				RGB pointRGB = RGB.calcRGB(image.getRGB(xline, y));
+				if (matched(pointRGB, rgb, 5)) {
+					found = true;
+					maxY = Math.max(maxY, y);
+					break;
+				}
+			}
+
+			if (!found) {
+				return;
+			} else {
+				Iterator<int[]> iterator = points.iterator();
+				while (iterator.hasNext()) {
+					int[] point = iterator.next();
+					if (point[1] < min[1]) {
+						iterator.remove();
+					}
+				}
+			}
+
 		}
 
 		Iterator<int[]> iterator = points.iterator();
@@ -522,7 +544,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			graphics.setColor(Color.white);
 			graphics.fillRect(position[0] - 5, position[1] - 5, 10, 10);
 
-			//NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
+			// NEXT_CENTER.debugWithMultiColor(graphics, NEXT_CENTER.countMap.values());
 
 			graphics.setColor(Color.BLACK);
 			NEXT_CENTER.debug(graphics, NEXT_CENTER.points);
