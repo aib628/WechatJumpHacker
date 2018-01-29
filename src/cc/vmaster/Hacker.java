@@ -76,6 +76,11 @@ public class Hacker {
 			ADB_PATH = args[0];
 			if (args.length > 1) {
 				imageSavePath = args[1];
+
+				if (args.length > 3) {
+					Phone.width = Integer.parseInt(args[2]);
+					Phone.height = Integer.parseInt(args[3]);
+				}
 			}
 		}
 
@@ -101,6 +106,10 @@ public class Hacker {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(imageFile.getAbsolutePath());
+			if (args.length < 3) {
+				Phone.width = image.getWidth();
+				Phone.height = image.getHeight();
+			}
 
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
