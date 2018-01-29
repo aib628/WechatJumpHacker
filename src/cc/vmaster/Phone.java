@@ -2,22 +2,20 @@ package cc.vmaster;
 
 public class Phone {
 
-	public static volatile int width = 1080;
-	public static volatile int height = 1920;
-	private static final int[] beginPoint = new int[] { width / 16, height / 6 };
-	private static final int[] endPoint = new int[] { width * 15 / 16, height * 14 / 15 };
+	public static int width = 1080;
+	public static int height = 1920;
 
 	/**
 	 * 每次返回新坐标数组，防止被误修改
 	 */
 	public static int[] getBeginPoint() {
-		return new int[] { beginPoint[0], beginPoint[1] };
+		return new int[] { width / 16, height / 6 };
 	}
 
 	/**
 	 * 每次返回新坐标数组，防止被误修改
 	 */
 	public static int[] getEndPoint() {
-		return new int[] { endPoint[0], endPoint[1] };
+		return new int[] { width * 15 / 16, height * 14 / 15 };
 	}
 }

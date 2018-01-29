@@ -151,6 +151,9 @@ public class BottleRangeCenterFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
+			Phone.width = image.getWidth();
+			Phone.height = image.getHeight();
+			
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标

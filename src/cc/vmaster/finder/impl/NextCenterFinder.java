@@ -516,6 +516,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 			System.out.println("当前处理文件：" + file.getAbsolutePath());
 			NEXT_CENTER.setImageFile(file);
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
+			Phone.width = image.getWidth();
+			Phone.height = image.getHeight();
+			
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标

@@ -161,6 +161,9 @@ public class MyPositionFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
+			Phone.width = image.getWidth();
+			Phone.height = image.getHeight();
+
 			int[] point = finder.findAndRecord(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			System.out.println(String.format("当前位置：(%s,%s)", point[0], point[1]));
 			System.out.println(String.format("匹配耗时(ms)：%s", finder.getMilliCosts()));
