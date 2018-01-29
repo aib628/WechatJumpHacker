@@ -90,7 +90,11 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 		int[] point = new int[] { 0, 0 };
 		if (sortedMap.size() == 0) {
-			inputConfirm(image, point, "识别遇到问题，请手动调整，继续（Y）");
+			// 保证只执行一次
+			if (position != null && endPoint[1] != position[1]) {
+				endPoint[1] = position[1];
+				return find(image, beginPoint, endPoint);
+			}
 		} else {
 			// 经过上述移除操作，此时一定只剩唯一点集合
 			for (PixelContainer pixel : sortedMap.values()) {
