@@ -55,6 +55,11 @@ public class MyPositionFinder extends TimeRecodFinder {
 			}
 		}
 
+		if (points.size() == 0) {
+			System.out.println("请确认游戏已启动且手机牌亮屏状态后重启该程序再行尝试...");
+			System.exit(0);
+		}
+
 		removeImpossible();
 		Collections.sort(points, XLineAscComparator.instance);
 		int minX = points.get(0)[0];

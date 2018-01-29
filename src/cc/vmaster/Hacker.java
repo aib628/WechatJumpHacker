@@ -83,23 +83,6 @@ public class Hacker {
 		System.out.println("WorkHome: " + inputDirectory.getAbsolutePath());
 		final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				while (true) {
-					if (autoMode) {
-						try {
-							listenInput(reader);
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					}
-				}
-			}
-
-		}).start();
-
 		int hitCount = 0;
 		int executeCount = 1;
 		for (;; executeCount++) {
@@ -182,6 +165,10 @@ public class Hacker {
 
 			try {
 				if (autoMode) {
+					if (reader.ready()) {
+						listenInput(reader);
+					}
+
 					Thread.sleep(3_000 + RANDOM.nextInt(3000));
 				} else {
 					Thread.sleep(distance);// 防止按快，导致截图有问题而结束
@@ -192,6 +179,9 @@ public class Hacker {
 
 			float hitRate = hitCount * 100 / executeCount;
 			System.out.println(String.format("共执行：%s次，命中：%s次，命中率：%s%%", executeCount, hitCount, hitRate));
+			if (autoMode) {
+				System.out.println();
+			}
 		}
 	}
 
@@ -228,7 +218,13 @@ public class Hacker {
 	 * @throws IOException
 	 */
 	private static void listenInput(BufferedReader reader) throws IOException {
-		System.out.println("输入选项【mode：切换自动模式及手动模式|数字：更改弹跳系数|空白：手动模式下继续】按下Enter继续...");
+		String tips = "输入选项【mode：切换为%s|数字：更改弹跳系数|直接回车：手动模式下继续|其它：忽略】按下Enter继续...\n";
+		if (autoMode) {
+			System.out.println(String.format(tips, "手动模式"));
+		} else {
+			System.out.println(String.format(tips, "自动模式"));
+		}
+
 		String mode = reader.readLine();
 		if ("mode".equalsIgnoreCase(mode)) {
 			autoMode = !autoMode;
