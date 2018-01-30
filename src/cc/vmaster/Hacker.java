@@ -217,7 +217,7 @@ public class Hacker {
 	private static int calcDistance(int[] beginPoint, int[] endPoint) {
 		double a = Math.pow(endPoint[0] - beginPoint[0], 2);
 		double b = Math.pow(endPoint[1] - beginPoint[1], 2);
-		return Double.valueOf(Math.sqrt(a + b) * JUMP_RATIO).intValue();
+		return new Long(Math.round(Math.sqrt(a + b) * JUMP_RATIO)).intValue();
 	}
 
 	/**

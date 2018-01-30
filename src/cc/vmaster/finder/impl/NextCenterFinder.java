@@ -460,9 +460,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @throws IOException
 	 */
 	private void inputConfirm(BufferedImage image, int[] point, String tips) {
-		System.out.println(tips);
-
 		try {
+			markPoint(image, imageFile, point);
+			System.out.println(tips);
+
 			String str = reader.readLine();
 			if ("Y".equalsIgnoreCase(str)) {
 				// 无操作
@@ -485,6 +486,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * @throws IOException
 	 */
 	private void inputAdjust(BufferedImage image, int[] point, String tips) throws IOException {
+		System.out.println(tips);
+
 		String str = reader.readLine();
 		Matcher matcher = PATTERN_POINT.matcher(str);
 		if (matcher.matches()) {
@@ -496,24 +499,36 @@ public class NextCenterFinder extends TimeRecodFinder {
 
 			System.out.println(sb.append(String.format("(%s,%s)", point[0], point[1])));
 
-			Graphics graphics = image.getGraphics();
-			graphics.setColor(Color.red);
-			graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);
-			graphics.dispose();
-
-			if (imageFile != null) {
-				String fileType = imageFile.getName().substring(imageFile.getName().lastIndexOf('.') + 1);
-				String filePath = imageFile.getAbsolutePath().replace("." + fileType, "_adjusted." + fileType);
-				File adjustFile = new File(filePath);
-				ImageIO.write(image, fileType, adjustFile);
-				System.out.println("请查看文件，确认调整结果：" + adjustFile.getAbsolutePath());
-			} else {
-				System.out.println("程序未设置当前处理文件...");
-			}
+			markPoint(image, imageFile, point);
 
 			inputConfirm(image, point, "调整已OK继续游戏(Y),再次调整(N)");
 		} else {
 			inputAdjust(image, point, "坐标格式为：(x,y)");
+		}
+	}
+
+	/**
+	 * 在图片上标记坐标点
+	 * 
+	 * @param image 源文件
+	 * @param imageFile 输出文件
+	 * @param point 坐标点
+	 * @throws IOException
+	 */
+	private void markPoint(BufferedImage image, File imageFile, int[] point) throws IOException {
+		Graphics graphics = image.getGraphics();
+		graphics.setColor(Color.red);
+		graphics.fillRect(point[0] - 5, point[1] - 5, 10, 10);
+		graphics.dispose();
+
+		if (imageFile != null) {
+			String fileType = imageFile.getName().substring(imageFile.getName().lastIndexOf('.') + 1);
+			String filePath = imageFile.getAbsolutePath().replace("." + fileType, "_adjusted." + fileType);
+			File adjustFile = new File(filePath);
+			ImageIO.write(image, fileType, adjustFile);
+			System.out.println("请查看文件，确认调整结果：" + adjustFile.getAbsolutePath());
+		} else {
+			System.out.println("程序未设置当前处理文件...");
 		}
 	}
 

@@ -69,7 +69,7 @@ public class MyPositionFinder extends TimeRecodFinder {
 		int maxY = points.get(points.size() - 1)[1];
 
 		int[] result = new int[2];
-		result[0] = (maxX + minX) / 2 + 3;
+		result[0] = (maxX + minX) / 2;
 		result[1] = maxY;
 
 		return result;
