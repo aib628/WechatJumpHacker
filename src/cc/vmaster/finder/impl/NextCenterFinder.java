@@ -163,7 +163,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 				}
 
 				// 如果通过计算得到的中心位置比当前位置还偏右，则移除
-				if ((maxX + minX) / 2 > position[0]) {
+				else if ((maxX + minX) / 2 > position[0]) {
 					iterator.remove();
 					if (debug()) {
 						System.out.println("通过中心位置与瓶子位置相比移除：右方");
@@ -197,7 +197,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 				}
 
 				// 如果通过计算得到的中心位置比当前位置还偏左，则移除
-				if ((maxX + minX) / 2 < position[0]) {
+				else if ((maxX + minX) / 2 < position[0]) {
 					iterator.remove();
 					if (debug()) {
 						System.out.println("通过中心位置与瓶子位置相比移除：左方");
