@@ -85,30 +85,41 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		Map<Integer, PixelContainer> sortedMap = MapHelper.reorderCountMap(countMap);
-		MapHelper.removeUseless(sortedMap, 0, 4);
-		removeImposible(sortedMap, width, endPoint[1]);
+		MapHelper.removeUseless(sortedMap, 0, 4);// 按数量移除较少的集合点
+		removeImposible(sortedMap, width, endPoint[1]);// 移除一定不可能的点
 
-		int[] point = new int[] { 0, 0 };
 		if (sortedMap.size() == 0) {
 			// 保证只执行一次
 			if (position != null && endPoint[1] != position[1]) {
 				endPoint[1] = position[1];
 				return find(image, beginPoint, endPoint);
 			}
-		} else {
-			// 经过上述移除操作，此时一定只剩唯一点集合
-			for (PixelContainer pixel : sortedMap.values()) {
-				points.addAll(pixel.pointList);
-			}
-
-			removeDiscontinuousPoints(image, width);// 移除不连续的点
-
-			Collections.sort(points, XLineAscComparator.instance);
-			int[] min = points.get(0);
-			int[] max = points.get(points.size() - 1);
-			point = new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
-			makeupPoint(image, point, image.getHeight());
 		}
+
+		return removeUntilOnlyOne(image, sortedMap, width);// 移除直至只剩一个
+	}
+
+	/**
+	 * 此处传入的Map经过处理后仅剩一个坐标集合。或者目标块低于瓶子头部时此处Map无元素
+	 * 
+	 * @param image
+	 * @param sortedMap
+	 * @param width
+	 * @return
+	 */
+	private int[] calcCenterPoint(BufferedImage image, int width, boolean tips) {
+		removeDiscontinuousPoints(image, width);// 移除不连续的点
+
+		Collections.sort(points, XLineAscComparator.instance);
+		int[] min = points.get(0);
+		int[] max = points.get(points.size() - 1);
+		int[] point = new int[] { (min[0] + max[0]) / 2, Math.min(min[1], max[1]) };
+		boolean flag = makeupPoint(image, point, image.getHeight(), tips);
+		if (!flag) {
+			return new int[] { 0, 0 };
+		}
+
+		changeBgColor(image, point[1], width);// 将背景色切换为当前行
 
 		return point;
 	}
@@ -119,7 +130,38 @@ public class NextCenterFinder extends TimeRecodFinder {
 	private void removeImposible(Map<Integer, PixelContainer> sortedMap, int width, int maxY) {
 		removeByPosition(sortedMap, width);// 移除位置不可能的部分
 		removeByBottle(sortedMap, maxY);// 移除瓶子头部区域
-		removeTargetBottom(sortedMap);// 可移除目标块高度切面部分
+	}
+
+	private int[] removeUntilOnlyOne(BufferedImage image, Map<Integer, PixelContainer> sortedMap, int width) {
+		Map<Integer, PixelContainer> map = MapHelper.reorderCountMap(sortedMap);// 重新生成一份备用
+		removeTargetBottom(sortedMap);// 移除目标块高度切面部分
+		for (PixelContainer pixel : sortedMap.values()) {
+			points.addAll(pixel.pointList);// 经过上述移除操作，此时一定只剩唯一点集合
+		}
+
+		int[] point = calcCenterPoint(image, width, false);
+
+		boolean matchedBG = false;
+		if (point != null && point.length == 2 && !CoordinateChecker.invalidPoint(point)) {
+			RGB rgb = RGB.calcRGB(image.getRGB(point[0], point[1]));// 背景色，肯定找的不对
+			matchedBG = matched(rgb, RGB_TARGET_BG, 16);
+		}
+
+		if (CoordinateChecker.invalidPoint(point) || matchedBG) {
+			if (debug()) {
+				System.out.println("取消目标块高度切面移除，改用集合点数量移除");
+			}
+
+			MapHelper.removeUseless(map, 0, 1);// 按占集合数量移除
+			points.clear();// 清除上步错误的点集合
+			for (PixelContainer pixel : map.values()) {
+				points.addAll(pixel.pointList);// 经过上述移除操作，此时一定只剩唯一点集合
+			}
+
+			point = calcCenterPoint(image, width, true);
+		}
+
+		return point;
 	}
 
 	/**
@@ -415,15 +457,18 @@ public class NextCenterFinder extends TimeRecodFinder {
 	 * 
 	 * @param point 当前坐标
 	 */
-	private void makeupPoint(BufferedImage image, int[] point, int height) {
+	private boolean makeupPoint(BufferedImage image, int[] point, int height, boolean tips) {
 		int minY = maxInt;
 		int maxY = minInt;
 		int xline = point[0];
 		int yline = point[1];
 		RGB rgb = RGB.calcRGB(image.getRGB(xline, yline));
 		if (matched(rgb, RGB_TARGET_BG, 5)) {
-			inputConfirm(image, point, "下一中心点识别遇到问题，请确认输出图片标记是否正确（Y/N）");
-			return;// 人工干预，直接返回
+			if (tips) {
+				inputConfirm(image, point, "下一中心点识别遇到问题，请确认输出图片标记是否正确（Y/N）");
+			}
+
+			return false;// 人工干预，直接返回
 		}
 
 		boolean[] flag = new boolean[] { false, false };
@@ -450,6 +495,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		point[1] = (minY + maxY) / 2;
+
+		return true;
 	}
 
 	/**
