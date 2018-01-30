@@ -148,8 +148,10 @@ public class NextCenterFinder extends TimeRecodFinder {
 				Entry<Integer, PixelContainer> e = iterator.next();
 				List<int[]> points = e.getValue().pointList;
 				int minX = maxInt;
+				int maxX = minInt;
 				for (int[] point : points) {
 					minX = Math.min(minX, point[0]);
+					maxX = Math.max(maxX, point[0]);
 				}
 
 				// 如果连最小值都位于屏幕右边，此值定有问题
@@ -157,6 +159,14 @@ public class NextCenterFinder extends TimeRecodFinder {
 					iterator.remove();
 					if (debug()) {
 						System.out.println("通过瓶子位置移除：右方");
+					}
+				}
+
+				// 如果通过计算得到的中心位置比当前位置还偏右，则移除
+				if ((maxX + minX) / 2 > position[0]) {
+					iterator.remove();
+					if (debug()) {
+						System.out.println("通过中心位置与瓶子位置相比移除：右方");
 					}
 				}
 			}
@@ -172,7 +182,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 				Entry<Integer, PixelContainer> e = iterator.next();
 				List<int[]> points = e.getValue().pointList;
 				int maxX = minInt;
+				int minX = maxInt;
 				for (int[] point : points) {
+					minX = Math.min(minX, point[0]);
 					maxX = Math.max(maxX, point[0]);
 				}
 
@@ -181,6 +193,14 @@ public class NextCenterFinder extends TimeRecodFinder {
 					iterator.remove();
 					if (debug()) {
 						System.out.println("通过瓶子位置移除：左方");
+					}
+				}
+
+				// 如果通过计算得到的中心位置比当前位置还偏左，则移除
+				if ((maxX + minX) / 2 < position[0]) {
+					iterator.remove();
+					if (debug()) {
+						System.out.println("通过中心位置与瓶子位置相比移除：左方");
 					}
 				}
 			}
@@ -518,7 +538,7 @@ public class NextCenterFinder extends TimeRecodFinder {
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
 			Phone.width = image.getWidth();
 			Phone.height = image.getHeight();
-			
+
 			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标
