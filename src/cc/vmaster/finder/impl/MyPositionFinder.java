@@ -13,7 +13,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
-import cc.vmaster.Phone;
+import cc.vmaster.IPhone;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
@@ -161,10 +161,9 @@ public class MyPositionFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
-			Phone.width = image.getWidth();
-			Phone.height = image.getHeight();
+			IPhone phone = getPhone(image);
 
-			int[] point = finder.findAndRecord(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			int[] point = finder.findAndRecord(image, phone.getBeginPoint(), phone.getEndPoint());
 			System.out.println(String.format("当前位置：(%s,%s)", point[0], point[1]));
 			System.out.println(String.format("匹配耗时(ms)：%s", finder.getMilliCosts()));
 
@@ -194,5 +193,32 @@ public class MyPositionFinder extends TimeRecodFinder {
 		}
 
 		System.out.println("average time cost(ms): " + (costs / files.length / 1_000_000));
+	}
+
+	private static IPhone getPhone(final BufferedImage image) {
+		IPhone phone = new IPhone() {
+
+			@Override
+			public int getWidth() {
+				return image.getWidth();
+			}
+
+			@Override
+			public int getHeight() {
+				return image.getHeight();
+			}
+
+			@Override
+			public int[] getEndPoint() {
+				return new int[] { getWidth() * 15 / 16, getHeight() * 14 / 15 };
+			}
+
+			@Override
+			public int[] getBeginPoint() {
+				return new int[] { getWidth() / 16, getHeight() / 6 };
+			}
+		};
+
+		return phone;
 	}
 }

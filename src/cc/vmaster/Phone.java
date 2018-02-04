@@ -1,21 +1,27 @@
 package cc.vmaster;
 
-public class Phone {
+public class Phone implements IPhone {
 
-	public static int width = 1080;
-	public static int height = 1920;
+	private final int width = 1080;
+	private final int height = 1920;
 
-	/**
-	 * 每次返回新坐标数组，防止被误修改
-	 */
-	public static int[] getBeginPoint() {
+	@Override
+	public int getWidth() {
+		return width;
+	}
+
+	@Override
+	public int getHeight() {
+		return height;
+	}
+
+	@Override
+	public int[] getBeginPoint() {
 		return new int[] { width / 16, height / 6 };
 	}
 
-	/**
-	 * 每次返回新坐标数组，防止被误修改
-	 */
-	public static int[] getEndPoint() {
+	@Override
+	public int[] getEndPoint() {
 		return new int[] { width * 15 / 16, height * 14 / 15 };
 	}
 }

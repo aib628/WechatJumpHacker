@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
-import cc.vmaster.Phone;
+import cc.vmaster.IPhone;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.finder.helper.MapHelper;
 import cc.vmaster.finder.helper.PixelContainer;
@@ -598,10 +598,9 @@ public class NextCenterFinder extends TimeRecodFinder {
 			System.out.println("当前处理文件：" + file.getAbsolutePath());
 			NEXT_CENTER.setImageFile(file);
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
-			Phone.width = image.getWidth();
-			Phone.height = image.getHeight();
+			IPhone phone = getPhone(image);
 
-			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			int[] position = My_POSITION.find(image, phone.getBeginPoint(), phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标
 			}
@@ -611,8 +610,8 @@ public class NextCenterFinder extends TimeRecodFinder {
 			int skipHeight = position[1] - bottleTop[1];
 
 			NEXT_CENTER.setPosition(position);
-			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
-			int[] point = NEXT_CENTER.findAndRecord(image, Phone.getBeginPoint(), nextCenterEndPoint);
+			int[] nextCenterEndPoint = new int[] { phone.getEndPoint()[0], position[1] - skipHeight };
+			int[] point = NEXT_CENTER.findAndRecord(image, phone.getBeginPoint(), nextCenterEndPoint);
 			System.out.println(String.format("下一中心位置：(%s,%s)", point[0], point[1]));
 			System.out.println(String.format("匹配耗时(ms)：%s\n", NEXT_CENTER.getMilliCosts()));
 
@@ -648,6 +647,33 @@ public class NextCenterFinder extends TimeRecodFinder {
 		}
 
 		System.out.println("average time cost(ms): " + (costs / files.length / 1_000_000));
+	}
+
+	private static IPhone getPhone(final BufferedImage image) {
+		IPhone phone = new IPhone() {
+
+			@Override
+			public int getWidth() {
+				return image.getWidth();
+			}
+
+			@Override
+			public int getHeight() {
+				return image.getHeight();
+			}
+
+			@Override
+			public int[] getEndPoint() {
+				return new int[] { getWidth() * 15 / 16, getHeight() * 14 / 15 };
+			}
+
+			@Override
+			public int[] getBeginPoint() {
+				return new int[] { getWidth() / 16, getHeight() / 6 };
+			}
+		};
+
+		return phone;
 	}
 
 }

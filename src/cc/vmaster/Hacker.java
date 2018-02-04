@@ -7,7 +7,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.Properties;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -16,6 +20,7 @@ import cc.vmaster.finder.impl.MyPositionFinder;
 import cc.vmaster.finder.impl.NextCenterFinder;
 import cc.vmaster.finder.impl.WhiterPointFinder;
 import cc.vmaster.helper.CoordinateChecker;
+import cc.vmaster.helper.IOUtils;
 import cc.vmaster.helper.ImageHelper;
 import cc.vmaster.helper.shell.CommandHelper;
 
@@ -65,21 +70,67 @@ public class Hacker {
 	 * 随机数发生器
 	 */
 	private static final Random RANDOM = new Random();
-
+	private static final Pattern PATTERN_POINT = Pattern.compile("^\\(([-+]*[0-9]+),([-+]*[0-9]+)\\)$");
 	private static final MyPositionFinder My_POSITION = MyPositionFinder.getInstance();
 	private static final NextCenterFinder NEXT_CENTER = NextCenterFinder.getInstance();
 	private static final WhiterPointFinder WHITE_POINT = WhiterPointFinder.getInstance();
 	private static final BottleTopFinder BOTTLE_TOP = BottleTopFinder.getInstance();
+	private static IPhone phone = new Phone();// 默认1080*1920 分辨率
 
 	public static void main(String[] args) throws IOException {
 		if (args.length > 0) {
-			ADB_PATH = args[0];
+			imageSavePath = args[0];
 			if (args.length > 1) {
-				imageSavePath = args[1];
+				ADB_PATH = args[1];
+			}
+		}
 
-				if (args.length > 3) {
-					Phone.width = Integer.parseInt(args[2]);
-					Phone.height = Integer.parseInt(args[3]);
+		URL url = IOUtils.getURL(imageSavePath + "/config.properties");
+		if (url != null) {
+			Properties properties = new Properties();
+			properties.load(url.openStream());
+			String configSwitch = properties.getProperty("switch");
+			if ("true".equalsIgnoreCase(configSwitch)) {
+				System.out.println("使用自定义配置.........");
+				final String width = properties.getProperty("width");
+				final String height = properties.getProperty("height");
+				final String beginPoint = properties.getProperty("beginPoint");
+				final String endPoint = properties.getProperty("endPoint");
+				final String jumpRatio = properties.getProperty("jumpRatio");
+
+				final Matcher beginMatcher = PATTERN_POINT.matcher(beginPoint);
+				final Matcher endMatcher = PATTERN_POINT.matcher(endPoint);
+
+				try {
+					JUMP_RATIO = Float.parseFloat(jumpRatio);
+					if (beginMatcher.matches() && endMatcher.matches()) {
+						phone = new IPhone() {
+
+							@Override
+							public int getWidth() {
+								return Integer.parseInt(width);
+							}
+
+							@Override
+							public int getHeight() {
+								return Integer.parseInt(height);
+							}
+
+							@Override
+							public int[] getEndPoint() {
+								return new int[] { Integer.parseInt(endMatcher.group(1)),
+										Integer.parseInt(endMatcher.group(2)) };
+							}
+
+							@Override
+							public int[] getBeginPoint() {
+								return new int[] { Integer.parseInt(beginMatcher.group(1)),
+										Integer.parseInt(beginMatcher.group(2)) };
+							}
+						};
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 		}
@@ -106,12 +157,8 @@ public class Hacker {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(imageFile.getAbsolutePath());
-			if (args.length < 3) {
-				Phone.width = image.getWidth();
-				Phone.height = image.getHeight();
-			}
 
-			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			int[] position = My_POSITION.find(image, phone.getBeginPoint(), phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				System.out.println("游戏结束...");
 				break;// 未找到当前坐标
@@ -125,8 +172,8 @@ public class Hacker {
 			int skipHeight = position[1] - bottleTop[1];
 
 			NEXT_CENTER.setPosition(position);
-			int[] nextCenterEndPoint = new int[] { Phone.getEndPoint()[0], position[1] - skipHeight };
-			int[] nextCenter = NEXT_CENTER.find(image, Phone.getBeginPoint(), nextCenterEndPoint);
+			int[] nextCenterEndPoint = new int[] { phone.getEndPoint()[0], position[1] - skipHeight };
+			int[] nextCenter = NEXT_CENTER.find(image, phone.getBeginPoint(), nextCenterEndPoint);
 			if (CoordinateChecker.invalidPoint(nextCenter)) {
 				System.out.println("游戏结束...");
 				break;// 未找到下一目标位置坐标

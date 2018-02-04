@@ -9,7 +9,7 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
-import cc.vmaster.Phone;
+import cc.vmaster.IPhone;
 import cc.vmaster.finder.TimeRecodFinder;
 import cc.vmaster.helper.CoordinateChecker;
 import cc.vmaster.helper.IOUtils;
@@ -151,10 +151,9 @@ public class BottleRangeCenterFinder extends TimeRecodFinder {
 			}
 
 			BufferedImage image = ImageHelper.loadImage(file.getAbsolutePath());
-			Phone.width = image.getWidth();
-			Phone.height = image.getHeight();
-			
-			int[] position = My_POSITION.find(image, Phone.getBeginPoint(), Phone.getEndPoint());
+			IPhone phone = getPhone(image);
+
+			int[] position = My_POSITION.find(image, phone.getBeginPoint(), phone.getEndPoint());
 			if (CoordinateChecker.invalidPoint(position)) {
 				break;// 未找到当前坐标
 			}
@@ -196,4 +195,30 @@ public class BottleRangeCenterFinder extends TimeRecodFinder {
 		System.out.println("average time cost(ms): " + (costs / files.length / 1_000_000));
 	}
 
+	private static IPhone getPhone(final BufferedImage image) {
+		IPhone phone = new IPhone() {
+
+			@Override
+			public int getWidth() {
+				return image.getWidth();
+			}
+
+			@Override
+			public int getHeight() {
+				return image.getHeight();
+			}
+
+			@Override
+			public int[] getEndPoint() {
+				return new int[] { getWidth() * 15 / 16, getHeight() * 14 / 15 };
+			}
+
+			@Override
+			public int[] getBeginPoint() {
+				return new int[] { getWidth() / 16, getHeight() / 6 };
+			}
+		};
+
+		return phone;
+	}
 }
