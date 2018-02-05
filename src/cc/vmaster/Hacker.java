@@ -85,6 +85,75 @@ public class Hacker {
 			}
 		}
 
+		loadConfig();// 加载自定义配置
+
+		run();// 循环执行
+	}
+
+	/**
+	 * 初始化工作目录
+	 * 
+	 * @return 工作目录文件对象
+	 */
+	private static File initInputDirectory() {
+		String workHome = Hacker.class.getResource("/").getPath();
+		if (imageSavePath != null && imageSavePath.length() > 0) {
+			workHome = imageSavePath;
+		}
+
+		File inputDirectory = new File(workHome, "imgs/input");
+		inputDirectory.mkdirs();
+
+		return inputDirectory;
+	}
+
+	/**
+	 * 计算两点间距离
+	 */
+	private static int calcDistance(int[] beginPoint, int[] endPoint) {
+		double a = Math.pow(endPoint[0] - beginPoint[0], 2);
+		double b = Math.pow(endPoint[1] - beginPoint[1], 2);
+		return new Long(Math.round(Math.sqrt(a + b) * JUMP_RATIO)).intValue();
+	}
+
+	/**
+	 * 监听输入
+	 * 
+	 * @param reader
+	 * @throws IOException
+	 */
+	private static void listenInput(BufferedReader reader) throws IOException {
+		String tips = "输入选项【mode：切换为%s|数字：更改弹跳系数|直接回车：手动模式下继续|其它：忽略】按下Enter继续...\n";
+		if (autoMode) {
+			System.out.println(String.format(tips, "手动模式"));
+		} else {
+			System.out.println(String.format(tips, "自动模式"));
+		}
+
+		String mode = reader.readLine();
+		if ("mode".equalsIgnoreCase(mode)) {
+			autoMode = !autoMode;
+		} else if (mode != null && mode.length() > 0) {
+			try {
+				JUMP_RATIO = Float.parseFloat(mode);
+			} catch (Exception e) {
+			}
+		}
+	}
+
+	private static void adjustRatio(int[] positionPoint) {
+
+		if (expectdDistance > 0 && lastPositionPoint != null) {
+			// int actualDistance = calcDistance(lastPositionPoint, positionPoint);
+			// JUMP_RATIO = JUMP_RATIO * expectdDistance / actualDistance;
+
+			System.out.println("当前弹跳系数：" + JUMP_RATIO);
+		}
+
+	}
+
+	// 加载自定义配置
+	private static void loadConfig() throws IOException {
 		URL url = IOUtils.getURL(imageSavePath + "/config.properties");
 		if (url != null) {
 			Properties properties = new Properties();
@@ -134,7 +203,10 @@ public class Hacker {
 				}
 			}
 		}
+	}
 
+	// 循环执行
+	private static void run() throws IOException {
 		File inputDirectory = initInputDirectory();
 		System.out.println("WorkHome: " + inputDirectory.getAbsolutePath());
 		final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -240,67 +312,4 @@ public class Hacker {
 			}
 		}
 	}
-
-	/**
-	 * 初始化工作目录
-	 * 
-	 * @return 工作目录文件对象
-	 */
-	private static File initInputDirectory() {
-		String workHome = Hacker.class.getResource("/").getPath();
-		if (imageSavePath != null && imageSavePath.length() > 0) {
-			workHome = imageSavePath;
-		}
-
-		File inputDirectory = new File(workHome, "imgs/input");
-		inputDirectory.mkdirs();
-
-		return inputDirectory;
-	}
-
-	/**
-	 * 计算两点间距离
-	 */
-	private static int calcDistance(int[] beginPoint, int[] endPoint) {
-		double a = Math.pow(endPoint[0] - beginPoint[0], 2);
-		double b = Math.pow(endPoint[1] - beginPoint[1], 2);
-		return new Long(Math.round(Math.sqrt(a + b) * JUMP_RATIO)).intValue();
-	}
-
-	/**
-	 * 监听输入
-	 * 
-	 * @param reader
-	 * @throws IOException
-	 */
-	private static void listenInput(BufferedReader reader) throws IOException {
-		String tips = "输入选项【mode：切换为%s|数字：更改弹跳系数|直接回车：手动模式下继续|其它：忽略】按下Enter继续...\n";
-		if (autoMode) {
-			System.out.println(String.format(tips, "手动模式"));
-		} else {
-			System.out.println(String.format(tips, "自动模式"));
-		}
-
-		String mode = reader.readLine();
-		if ("mode".equalsIgnoreCase(mode)) {
-			autoMode = !autoMode;
-		} else if (mode != null && mode.length() > 0) {
-			try {
-				JUMP_RATIO = Float.parseFloat(mode);
-			} catch (Exception e) {
-			}
-		}
-	}
-
-	private static void adjustRatio(int[] positionPoint) {
-
-		if (expectdDistance > 0 && lastPositionPoint != null) {
-			// int actualDistance = calcDistance(lastPositionPoint, positionPoint);
-			// JUMP_RATIO = JUMP_RATIO * expectdDistance / actualDistance;
-
-			System.out.println("当前弹跳系数：" + JUMP_RATIO);
-		}
-
-	}
-
 }
